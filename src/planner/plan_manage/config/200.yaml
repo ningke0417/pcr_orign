@@ -1,0 +1,263 @@
+size_swarm : 120 #系统当中集群数量
+sparse_num : 5
+pcr_text_number : 1000
+vis_hor : 8.0 #可视距离
+max_graph_aware : 10.43 #最大团误差阈值0.43
+vis_step : 20
+#tray aware
+# sparse_0 : 3
+# sparse_1 : 7
+# sparse_2 : 9
+# sparse_3 : 17
+# sparse_4 : 18
+# sparse_5 : 19
+
+sparse_0 : 1
+sparse_1 : 20
+sparse_2 : 80
+sparse_3 : 100
+sparse_4 : 118
+
+t1_relative_pos_0 :  {x: 30.0, y:  0.0, z: 0.0}
+t1_relative_pos_1 :  {x: 29.3, y:  1.0, z: 0.0}
+t1_relative_pos_2 :  {x: 28.3, y:  1.3, z: 0.0}
+t1_relative_pos_3 :  {x: 27.3, y:  2.4, z: 0.0}
+t1_relative_pos_4 :  {x: 25.9, y:  3.0, z: 0.0}
+t1_relative_pos_5 :  {x: 25.3, y:  3.4, z: 0.0}
+t1_relative_pos_6 :  {x: 23.0,   y:  3.8, z: 0.0}
+t1_relative_pos_7 :  {x: 22.0,   y:  4.0, z: 0.0}
+t1_relative_pos_8 :  {x: 20.5, y:  4.1, z: 0.0}
+t1_relative_pos_9 :  {x: 19.1, y:  4.3, z: 0.0}
+t1_relative_pos_10 : {x: 17.9, y:  4.2, z: 0.0}
+t1_relative_pos_11 : {x: 16.6, y:  5.0, z: 0.0}
+t1_relative_pos_12 : {x: 15.7, y:  6.0, z: 0.0}
+t1_relative_pos_13 : {x: 14.3, y:  7.1, z: 0.0}
+t1_relative_pos_14 : {x: 13.2, y:  7.8, z: 0.0}
+t1_relative_pos_15 : {x: 11.5, y:  7.8, z: 0.0}
+t1_relative_pos_16 : {x: 10.1, y:  7.7, z: 0.0}
+t1_relative_pos_17 : {x: 9.0,    y:  7.6, z: 0.0}
+t1_relative_pos_18 : {x: 9.0,    y:  6.6, z: 0.0}
+t1_relative_pos_19 : {x: 10.0,   y:  6.0, z: 0.0}
+t1_relative_pos_20 : {x: 11.2, y:  5.0, z: 0.0}
+t1_relative_pos_21 : {x: 29.3, y: -1.0, z: 0.0}
+t1_relative_pos_22 : {x: 28.3, y: -1.3, z: 0.0}
+t1_relative_pos_23 : {x: 27.3, y: -2.4, z: 0.0}
+t1_relative_pos_24 : {x: 25.9, y: -3.0, z: 0.0}
+t1_relative_pos_25 : {x: 25.3, y: -3.4, z: 0.0}
+t1_relative_pos_26 : {x: 23.0,   y: -3.8, z: 0.0}
+t1_relative_pos_27 : {x: 22.0,   y:   -4.0, z: 0.0}
+t1_relative_pos_28 : {x: 20.5, y: -4.1, z: 0.0}
+t1_relative_pos_29 : {x: 19.1, y: -4.3, z: 0.0}
+t1_relative_pos_30 : {x: 17.9, y: -4.2, z: 0.0}
+t1_relative_pos_31 : {x: 16.6, y:   -5.0, z: 0.0}
+t1_relative_pos_32 : {x: 15.7, y:   -6.0, z: 0.0}
+t1_relative_pos_33 : {x: 14.3, y: -7.1, z: 0.0}
+t1_relative_pos_34 : {x: 13.2, y: -7.8, z: 0.0}
+t1_relative_pos_35 : {x: 11.5, y: -7.8, z: 0.0}
+t1_relative_pos_36 : {x: 10.1, y: -7.7, z: 0.0}
+t1_relative_pos_37 : {x: 9.0,    y: -7.6, z: 0.0}
+t1_relative_pos_38 : {x: 9.0,    y: -6.6, z: 0.0}
+t1_relative_pos_39 : {x: 10.0,   y:   -6.0, z: 0.0}
+t1_relative_pos_40 : {x: 11.2, y:   -5.0, z: 0.0}
+t1_relative_pos_41 : {x: 15.9, y:  4.2, z: 0.0}
+t1_relative_pos_42 : {x: 14.3, y:  4.1, z: 0.0}
+t1_relative_pos_43 : {x: 13.0,   y:    4.0, z: 0.0}
+t1_relative_pos_44 : {x: 11.9, y:    4.0, z: 0.0}
+t1_relative_pos_45 : {x: 15.0,   y:  5.1, z: 0.0}
+t1_relative_pos_46 : {x: 14.0, y:    5.0, z: 0.0}
+t1_relative_pos_47 : {x: 12.4, y:  4.8, z: 0.0}
+t1_relative_pos_48 : {x: 14.4, y:    6.0, z: 0.0}
+t1_relative_pos_49 : {x: 13.0,   y:    6.0, z: 0.0}
+t1_relative_pos_50 : {x: 11.5, y:    6.0, z: 0.0}
+t1_relative_pos_51 : {x: 13.5, y:  6.9, z: 0.0}
+t1_relative_pos_52 : {x: 12.0,   y:    7.0, z: 0.0}
+t1_relative_pos_53 : {x: 10.8, y:    7.0, z: 0.0}
+t1_relative_pos_54 : {x: 10.8, y:  3.7, z: 0.0}
+t1_relative_pos_55 : {x: 9.4,  y:  3.3, z: 0.0} 
+t1_relative_pos_56 : {x: 10.8, y:    2.0, z: 0.0}
+t1_relative_pos_57 : {x: 9.4,  y:  2.3, z: 0.0}
+t1_relative_pos_58 : {x: 7.9,  y:    3.0, z: 0.0}
+t1_relative_pos_59 : {x: 6.3,  y:  2.9, z: 0.0}
+t1_relative_pos_60 : {x: 5.0,    y:  2.4, z: 0.0}
+t1_relative_pos_61 : {x: 3.8,  y:  1.8, z: 0.0}
+t1_relative_pos_62 : {x: 2.8,  y:    1.0, z: 0.0}
+t1_relative_pos_63 : {x: 2.0,    y:    0.0, z: 0.0}
+t1_relative_pos_64 : {x: 15.9, y: -4.2, z: 0.0}
+t1_relative_pos_65 : {x: 14.3, y: -4.1, z: 0.0}
+t1_relative_pos_66 : {x: 13.0,   y:   -4.0, z: 0.0}
+t1_relative_pos_67 : {x: 11.9, y:   -4.0, z: 0.0}
+t1_relative_pos_68 : {x: 15.0,   y: -5.1, z: 0.0}
+t1_relative_pos_69 : {x: 14.0, y:   -5.0, z: 0.0}
+t1_relative_pos_70 : {x: 12.4, y: -4.8, z: 0.0}
+t1_relative_pos_71 : {x: 14.4, y:   -6.0, z: 0.0}
+t1_relative_pos_72 : {x: 13.0,   y:   -6.0, z: 0.0}
+t1_relative_pos_73 : {x: 11.5, y:   -6.0, z: 0.0}
+t1_relative_pos_74 : {x: 13.5, y: -6.9, z: 0.0}
+t1_relative_pos_75 : {x: 12.0,   y:   -7.0, z: 0.0}
+t1_relative_pos_76 : {x: 10.8, y:   -7.0, z: 0.0}
+t1_relative_pos_77 : {x: 10.8, y: -3.7, z: 0.0}
+t1_relative_pos_78 : {x: 9.4,  y: -3.3, z: 0.0} 
+t1_relative_pos_79 : {x: 10.8, y:   -2.0, z: 0.0}
+t1_relative_pos_80 : {x: 9.4,  y: -2.3, z: 0.0}
+t1_relative_pos_81 : {x: 7.9,  y:   -3.0, z: 0.0}
+t1_relative_pos_82 : {x: 6.3,  y: -2.9, z: 0.0}
+t1_relative_pos_83 : {x: 5.0,    y: -2.4, z: 0.0}
+t1_relative_pos_84 : {x: 3.8,  y: -1.8, z: 0.0}
+t1_relative_pos_85 : {x: 2.8,  y:   -1.0, z: 0.0}
+t1_relative_pos_86 : {x: 28.4, y:    0.0, z: 0.0}
+t1_relative_pos_87 : {x: 26.4, y:    0.0, z: 0.0}
+t1_relative_pos_88 : {x: 24.0,   y:    0.0, z: 0.0}
+t1_relative_pos_89 : {x: 21.5, y:    0.0, z: 0.0}
+t1_relative_pos_90 : {x: 18.8, y:    0.0, z: 0.0}
+t1_relative_pos_91 : {x: 17.5, y:    0.0, z: 0.0}
+t1_relative_pos_92 : {x: 8.2,  y:    0.0, z: 0.0}
+t1_relative_pos_93 : {x: 6.8,  y:    0.0, z: 0.0}
+t1_relative_pos_94 : {x: 4.8,  y:    0.0, z: 0.0}
+t1_relative_pos_95 : {x: 3.2,  y:    0.0, z: 0.0}
+t1_relative_pos_96 : {x: 27.9, y:  0.9, z: 0.0}
+t1_relative_pos_97 : {x: 26.5, y: 1.15, z: 0.0}
+t1_relative_pos_98 : {x: 25.3, y: 1.95, z: 0.0}
+t1_relative_pos_99 : {x: 25.1, y:  0.8, z: 0.0}
+t1_relative_pos_100 :  {x: 23.8,  y:  1.2, z: 0.0 }
+t1_relative_pos_101 :  {x: 23.0,    y:  2.2, z: 0.0 }
+t1_relative_pos_102 :  {x: 21.5,  y:  2.7, z: 0.0 }
+t1_relative_pos_103 :  {x: 20.0,    y:  2.2, z: 0.0 }
+t1_relative_pos_104 :  {x: 22.5,  y:  1.3, z: 0.0 }
+t1_relative_pos_105 :  {x: 20.2,  y:  1.3, z: 0.0 }
+t1_relative_pos_106 :  {x: 19.0,    y: 1.15, z: 0.0 }
+t1_relative_pos_107 :  {x: 19.5,  y:  3.4, z: 0.0 }
+t1_relative_pos_108 :  {x: 18.0,    y:  2.8, z: 0.0 }
+t1_relative_pos_109 :  {x: 17.5,  y:  1.5, z: 0.0 }
+t1_relative_pos_110 :  {x: 16.5,  y:  2.8, z: 0.0 }
+t1_relative_pos_111 :  {x: 15.0,    y:  2.8, z: 0.0 }
+t1_relative_pos_112 :  {x: 13.5,  y:  2.8, z: 0.0 }
+t1_relative_pos_113 :  {x: 12.0,    y:  2.8, z: 0.0 }
+t1_relative_pos_114 :  {x: 8.5,   y:  1.8, z: 0.0 }
+t1_relative_pos_115 :  {x: 7.3,   y:  1.8, z: 0.0 }
+t1_relative_pos_116 :  {x: 6.0,     y:    1.0, z: 0.0 }
+t1_relative_pos_117 :  {x: 15.95, y:  0.8, z: 0.0 }
+t1_relative_pos_118 :  {x: 14.05, y: 0.94, z: 0.0 }
+t1_relative_pos_119 :  {x: 12.4,  y:  0.9, z: 0.0 }
+# t1_relative_pos_120 :  {x: 10.8,  y: 0.85, z: 0.0 }
+# t1_relative_pos_121 :  {x: 9.4,   y:  0.7, z: 0.0 }
+# t1_relative_pos_122 :  {x: 27.9,  y: -0.9, z: 0.0 }
+# t1_relative_pos_123 :  {x: 26.5,  y: -1.15, z: 0.0 }
+# t1_relative_pos_124 :  {x: 25.3,  y: -1.95, z: 0.0 }
+# t1_relative_pos_125 :  {x: 25.1,  y: -0.8, z: 0.0 }
+# t1_relative_pos_126 :  {x: 23.8,  y: -1.2, z: 0.0 }
+# t1_relative_pos_127 :  {x: 23.0,    y: -2.2, z: 0.0 }
+# t1_relative_pos_128 :  {x: 21.5,  y: -2.7, z: 0.0 }
+# t1_relative_pos_129 :  {x: 20.0,    y: -2.2, z: 0.0 }
+# t1_relative_pos_130 :  {x: 22.5,  y: -1.3, z: 0.0 }
+# t1_relative_pos_131 :  {x: 20.2,  y: -1.3, z: 0.0 }
+# t1_relative_pos_132 :  {x: 19.0,    y: -1.15, z: 0.0 }
+# t1_relative_pos_133 :  {x: 19.5,  y: -3.4, z: 0.0 }
+# t1_relative_pos_134 :  {x: 18.0,    y: -2.8, z: 0.0 }
+# t1_relative_pos_135 :  {x: 17.5,  y: -1.5, z: 0.0 }
+# t1_relative_pos_136 :  {x: 16.5,  y: -2.8, z: 0.0 }
+# t1_relative_pos_137 :  {x: 15.0,    y: -2.8, z: 0.0 }
+# t1_relative_pos_138 :  {x: 13.5,  y: -2.8, z: 0.0 }
+# t1_relative_pos_139 :  {x: 12.0,    y: -2.8, z: 0.0 }
+# t1_relative_pos_140 :  {x: 8.5,   y: -1.8, z: 0.0 }
+# t1_relative_pos_141 :  {x: 7.3,   y: -1.8, z: 0.0 }
+# t1_relative_pos_142 :  {x: 6.0,     y:   -1.0, z: 0.0 }
+# t1_relative_pos_143 :  {x: 15.95, y: -0.8, z: 0.0 }
+# t1_relative_pos_144 :  {x: 14.05, y: -0.94, z: 0.0 }
+# t1_relative_pos_145 :  {x: 12.4,  y: -0.9, z: 0.0 }
+# t1_relative_pos_146 :  {x: 10.8,  y: -0.85, z: 0.0 }
+# t1_relative_pos_147 :  {x: 9.4,   y: -0.7, z: 0.0 }
+# t1_relative_pos_148 :  {x: 24.25, y:  3.6, z: 0.0 }
+# t1_relative_pos_149 :  {x: 24.25, y: -3.6, z: 0.0 }
+
+global_goal:
+  swarm_central_pos: {x: 25.0, y: 0.0, z: 0.0}
+  swarm_scale : 1.2
+
+# finite state machine
+fsm:
+  formation_error_clearance : 100.05 #0.05
+  aware_clearance : 10000 #100.0
+  softmax_aware_clearance : 100.33 #0.33  # only for regular hexagon = 1 / 7 * 2
+  ca_delta_t : 3.5
+  isuse_local_vel : true          # if consider the local goal velocity when calling global trakectory replanning
+  replan_trajectory_time : 0.05    # s, the max time of replanning trajectory
+  
+# back-end local trajectory optimization
+optimization:
+  formation_type: 1
+
+  # formation method:
+    # 0: (default) swarm-graph-based
+    # 1: leader-follow position-based
+    # 2: relative position-based
+    # 3: VRB formation control method
+  formation_method_type: 0
+  # optimization problem setting
+  constrain_points_perPiece: 4
+  # weight_obstacle     : 100000.0
+  # weight_swarm        : 100000.0
+  # weight_feasibility  : 100000.0
+  # weight_sqrvariance  : 100000.0
+  # weight_time         : 80.0
+  # weight_formation    : 10000.0
+
+  # weight_obstacle     : 50000.0
+  # weight_swarm        : 50000.0
+  # weight_feasibility  : 100000.0
+  # weight_sqrvariance  : 100000.0
+  # weight_time         : 80.0
+  # weight_formation    : 15000.0
+  weight_obstacle     : 10000.0
+  weight_swarm        : 0.0
+  weight_feasibility  : 80.0
+  weight_sqrvariance  : 80.0
+  weight_time         : 80.0
+  weight_formation    : 0.0
+  weight_formation2   : 0.0
+  weight_graph        : 1000.0
+  weight_icp          : 1.0   ##########
+
+  error_to_leader     : 0.01
+  use_graph           : true  
+  use_icp             : true  ################if true ,no sparse, only icp
+  use_sparse          : true  
+  # avoidance threshold
+  obstacle_clearance  : 0.2
+  swarm_clearance     : 0.1
+  icp_clearance       : 0.01
+  # fixed time step sampling
+  sampling_time_step  : 0.20
+  # three method of optimization
+  # enable_fix_step | enable_decouple_swarm_graph |  method
+  #     false       |             false           | icra2022
+  #     true        |             false           | fixed time step
+  #     true        |             true            | fixed time step + decouple local min of swarm-graph 
+  enable_fix_step             : true
+  enable_decouple_swarm_graph : true
+  
+  # only for real-world exp
+  is_opt_formation_z  : true
+  fixed_formation_z   : 0.5     # equal to the final goal_z !!!!!!
+
+
+# kinodynamic A*
+search:
+  reso_acc: 10.0
+  max_tau: 1.6
+  init_max_tau: 0.8
+  max_vel: 0.6
+  max_acc: 6.0
+  w_time: 500000.0  #时间软约束？
+  horizon: 10
+  lambda_heu: 5.0
+  resolution_astar: 0.2
+  time_resolution: 0.01
+  margin: 0.2
+  allocate_num: 10000000
+  check_num: 30
+  use_kino: false
+  # max_acc_z: 0.03
+  max_acc_z: 2.0
+  #修改地图密集程度，修改map的随机数id固定下来
+  # <arg name="planning_horizon" value="9" />  
+  # 注意hybridastar部分planning horizon影响local_pose修改为9

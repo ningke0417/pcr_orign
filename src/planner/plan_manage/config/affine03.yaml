@@ -1,0 +1,126 @@
+size_swarm : 21 #系统当中集群数量
+sparse_num : 5
+vis_hor : 8.0 #可视距离
+max_graph_aware : 10.43 #最大团误差阈值0.43
+vis_step : 20
+#tray aware
+sparse_0 : 1
+sparse_1 : 2
+sparse_2 : 3
+sparse_3 : 19
+sparse_4 : 20
+
+t1_relative_pos_0 : {x: 0.00,   y: 0.00,   z: 0.00}
+t1_relative_pos_1 : {x: -4.50,   y: -1.50,   z: 0.00}
+t1_relative_pos_2 : {x: -4.50,   y: 0.00,   z: 0.00}
+t1_relative_pos_3 : {x: -4.50,   y: 1.50,   z: 0.00}
+t1_relative_pos_4 : {x: -3.00,   y: -1.50,   z: 0.00}
+t1_relative_pos_5 : {x: -3.00,   y: 0.00,   z: 0.00}
+t1_relative_pos_6 : {x: -3.00,   y: 1.50,   z: 0.00}
+t1_relative_pos_7 : {x: -1.50,   y: -1.50,   z: 0.00}
+t1_relative_pos_8 : {x: -1.50,   y: 0.00,   z: 0.00}
+t1_relative_pos_9 : {x: -1.50,   y: 1.50,   z: 0.00}
+t1_relative_pos_10 : {x: 0.00,   y: -1.50,   z: 0.00}
+t1_relative_pos_11 : {x: 0.00,   y: 1.50,   z: 0.00}
+t1_relative_pos_12 : {x: 1.50,   y: -1.50,   z: 0.00}
+t1_relative_pos_13 : {x: 1.50,   y: 0.00,   z: 0.00}
+t1_relative_pos_14 : {x: 1.50,   y: 1.50,   z: 0.00}
+t1_relative_pos_15 : {x: 3.00,   y: -1.50,   z: 0.00}
+t1_relative_pos_16 : {x: 3.00,   y: 0.00,   z: 0.00}
+t1_relative_pos_17 : {x: 3.00,   y: 1.50,   z: 0.00}
+t1_relative_pos_18 : {x: 4.50,   y: -1.50,   z: 0.00}
+t1_relative_pos_19 : {x: 4.50,   y: 0.00,   z: 0.00}
+t1_relative_pos_20 : {x: 4.50,   y: 1.50,   z: 0.00}
+
+global_goal:
+  swarm_central_pos: {x: 25.0, y: 0.0, z: 0.0}
+  swarm_scale : 1.0
+
+# finite state machine
+fsm:
+  formation_error_clearance : 100.05 #0.05
+  aware_clearance : 10000 #100.0
+  softmax_aware_clearance : 100.33 #0.33  # only for regular hexagon = 1 / 7 * 2
+  ca_delta_t : 3.5
+  isuse_local_vel : true          # if consider the local goal velocity when calling global trakectory replanning
+  replan_trajectory_time : 0.05    # s, the max time of replanning trajectory
+  
+# back-end local trajectory optimization
+optimization:
+  formation_type: 1
+
+  # formation method:
+    # 0: (default) swarm-graph-based
+    # 1: leader-follow position-based
+    # 2: relative position-based
+    # 3: VRB formation control method
+  formation_method_type: 0
+  # optimization problem setting
+  constrain_points_perPiece: 4
+  # weight_obstacle     : 100000.0
+  # weight_swarm        : 100000.0
+  # weight_feasibility  : 100000.0
+  # weight_sqrvariance  : 100000.0
+  # weight_time         : 80.0
+  # weight_formation    : 10000.0
+
+  # weight_obstacle     : 50000.0
+  # weight_swarm        : 50000.0
+  # weight_feasibility  : 100000.0
+  # weight_sqrvariance  : 100000.0
+  # weight_time         : 80.0
+  # weight_formation    : 15000.0
+  weight_obstacle     : 10000.0
+  weight_swarm        : 10000.0
+  weight_feasibility  : 10000.0
+  weight_sqrvariance  : 80.0
+  weight_time         : 80.0
+  weight_formation    : 0.0
+  weight_formation2   : 0.0
+  weight_graph        : 200.0
+  weight_icp          : 1.0   ##########
+
+  error_to_leader     : 0.01
+  use_graph           : true  
+  use_icp             : false  ################if true ,no sparse, only icp
+  use_sparse          : false  
+  # avoidance threshold
+  obstacle_clearance  : 0.30
+  swarm_clearance     : 0.40
+  icp_clearance       : 0.01
+  # fixed time step sampling
+  sampling_time_step  : 0.20
+  # three method of optimization
+  # enable_fix_step | enable_decouple_swarm_graph |  method
+  #     false       |             false           | icra2022
+  #     true        |             false           | fixed time step
+  #     true        |             true            | fixed time step + decouple local min of swarm-graph 
+  enable_fix_step             : true
+  enable_decouple_swarm_graph : true
+  
+  # only for real-world exp
+  is_opt_formation_z  : true
+  fixed_formation_z   : 0.5     # equal to the final goal_z !!!!!!
+
+
+# kinodynamic A*
+search:
+  reso_acc: 10.0
+  max_tau: 1.6
+  init_max_tau: 0.8
+  max_vel: 0.6
+  max_acc: 6.0
+  w_time: 500000.0  #时间软约束？
+  horizon: 10
+  lambda_heu: 5.0
+  resolution_astar: 0.2
+  time_resolution: 0.01
+  margin: 0.2
+  allocate_num: 10000000
+  check_num: 30
+  use_kino: false
+  # max_acc_z: 0.03
+  max_acc_z: 2.0
+  #修改地图密集程度，修改map的随机数id固定下来
+  # <arg name="planning_horizon" value="9" />  
+  # 注意hybridastar部分planning horizon影响local_pose修改为9
