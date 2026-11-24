@@ -161,6 +161,7 @@ struct MappingData
 
 class GridMap
 {
+  friend class PlanningMapTestAccess;
 public:
   GridMap() {}
   ~GridMap() {}
@@ -204,6 +205,7 @@ public:
 
   bool hasDepthObservation();
   bool odomValid();
+  bool outsideMapDistance(const Eigen::Vector3d &pos, double &dist, Eigen::Vector3d &grad);
   void getRegion(Eigen::Vector3d &ori, Eigen::Vector3d &size);
   inline double getResolution();
   inline Eigen::Vector3d getMapSize();
@@ -404,6 +406,7 @@ inline int GridMap::getOccupancy(Eigen::Vector3i id)
 
 inline bool GridMap::isInMap(const Eigen::Vector3d &pos)
 {
+  if (!pos.allFinite()) return false;
   if (pos(0) < mp_.map_min_boundary_(0) + 1e-4 || pos(1) < mp_.map_min_boundary_(1) + 1e-4 ||
       pos(2) < mp_.map_min_boundary_(2) + 1e-4)
   {
@@ -480,6 +483,7 @@ inline double GridMap::getResolution() { return mp_.resolution_; }
 inline Eigen::Vector3d GridMap::getMapSize() { return mp_.map_size_; }
 
 inline double GridMap::getDistance(const Eigen::Vector3d& pos) {
+  if (!isInMap(pos)) return -1.0;
   Eigen::Vector3i id;
   posToIndex(pos, id);
   boundIndex(id);

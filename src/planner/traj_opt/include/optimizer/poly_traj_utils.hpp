@@ -446,6 +446,57 @@ namespace poly_traj
             return totalDuration;
         }
 
+        // An axis-aligned box contains a polynomial segment iff it contains its
+        // endpoints and every interior coordinate extremum. Check in normalized
+        // time so short segments cannot escape between collision samples.
+        inline bool checkPositionBounds(const Eigen::Vector3d &lower,
+                                        const Eigen::Vector3d &upper,
+                                        double *violation_time = nullptr) const
+        {
+            if (violation_time) *violation_time = 0.0;
+            if (pieces.empty() || !lower.allFinite() || !upper.allFinite() ||
+                (lower.array() > upper.array()).any())
+                return false;
+            double elapsed = 0.0;
+            for (const auto &piece : pieces)
+            {
+                const double duration = piece.getDuration();
+                if (!std::isfinite(duration) || duration <= 0.0 ||
+                    !piece.getCoeffMat().allFinite())
+                    return false;
+                const CoefficientMat coeff = piece.normalizePosCoeffMat();
+                if (!coeff.allFinite()) return false;
+                std::set<double> candidates{0.0, 1.0};
+                for (int axis = 0; axis < 3; ++axis)
+                {
+                    Eigen::VectorXd derivative(5);
+                    for (int j = 0; j < 5; ++j)
+                        derivative(j) = (5 - j) * coeff(axis, j);
+                    int first = 0;
+                    while (first < 5 && derivative(first) == 0.0) ++first;
+                    if (first >= 4) continue; // constant position or velocity
+                    Eigen::VectorXd equation = derivative.tail(5 - first);
+                    equation /= equation.cwiseAbs().maxCoeff();
+                    const auto roots = RootFinder::solvePolynomial(equation, 0.0, 1.0, 1e-9);
+                    for (double root : roots)
+                        if (std::isfinite(root) && root > 0.0 && root < 1.0)
+                            candidates.insert(root);
+                }
+                for (double u : candidates)
+                {
+                    const Eigen::Vector3d pos = piece.getPos(u * duration);
+                    if (!pos.allFinite() || (pos.array() < lower.array()).any() ||
+                        (pos.array() > upper.array()).any())
+                    {
+                        if (violation_time) *violation_time = elapsed + u * duration;
+                        return false;
+                    }
+                }
+                elapsed += duration;
+            }
+            return std::isfinite(elapsed);
+        }
+
         inline Eigen::MatrixXd getPositions() const
         {
             int N = getPieceNum();

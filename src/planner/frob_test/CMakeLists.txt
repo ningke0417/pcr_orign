@@ -39,6 +39,13 @@ add_library(swarm_graph
   src/swarm_graph.cpp
 )
 
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(test_swarm_graph test/test_swarm_graph.cpp)
+  if(TARGET test_swarm_graph)
+    target_link_libraries(test_swarm_graph swarm_graph ${catkin_LIBRARIES})
+  endif()
+endif()
+
 
 
 

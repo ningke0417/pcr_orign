@@ -1,0 +1,55 @@
+<launch>
+  <arg name="drone_id"/>
+  <arg name="init_x"/>
+  <arg name="init_y"/>
+  <arg name="start_z" default="1.5"/>
+  <arg name="goal_x" default="10.0"/>
+  <arg name="map_size_x" default="24.0"/>
+  <arg name="map_size_y" default="14.0"/>
+  <arg name="map_size_z" default="3.0"/>
+  <arg name="max_vel" default="0.5"/>
+  <arg name="auto_start" default="true"/>
+  <arg name="safety_distance" default="0.2"/>
+  <arg name="odom_topic" default="visual_slam/odom"/>
+  <!-- Single-host ROS transport for the same original planner messages. -->
+  <group>
+    <remap from="/others_odom" to="/my_odom"/>
+    <include file="$(find ego_planner)/launch/run_in_sim.launch">
+      <arg name="drone_id" value="$(arg drone_id)"/>
+      <arg name="init_x" value="$(arg init_x)"/>
+      <arg name="init_y" value="$(arg init_y)"/>
+      <arg name="init_z" value="$(arg start_z)"/>
+      <arg name="target_x" value="$(arg goal_x)"/>
+      <arg name="target_y" value="0.0"/>
+      <arg name="target_z" value="$(arg start_z)"/>
+      <arg name="map_size_x" value="$(arg map_size_x)"/>
+      <arg name="map_size_y" value="$(arg map_size_y)"/>
+      <arg name="map_size_z" value="$(arg map_size_z)"/>
+      <arg name="odom_topic" value="$(arg odom_topic)"/>
+      <arg name="swarm_formation_yaml" value="rectangle_8uav_pcr"/>
+      <arg name="flight_type" value="4"/>
+      <arg name="max_vel" value="$(arg max_vel)"/>
+      <arg name="max_acc" value="6.0"/>
+      <arg name="direct_swarm_topics" value="true"/>
+      <arg name="mesh_resource" value="package://odom_visualization/meshes/fake_drone.dae"/>
+      <arg name="robot_scale" value="0.35"/>
+      <arg name="tf45" value="true"/>
+      <arg name="sensing_horizon" value="5.0"/>
+      <arg name="full_360_sensing" value="true"/>
+    </include>
+  </group>
+  <param name="drone_$(arg drone_id)_ego_planner_node/global_goal/swarm_central_pos/x" value="$(arg goal_x)" type="double"/>
+  <param name="drone_$(arg drone_id)_ego_planner_node/global_goal/swarm_central_pos/z" value="$(arg start_z)" type="double"/>
+  <param name="drone_$(arg drone_id)_ego_planner_node/optimization/fixed_formation_z" value="$(arg start_z)" type="double"/>
+  <param name="drone_$(arg drone_id)_ego_planner_node/grid_map/obstacles_inflation" value="$(arg safety_distance)" type="double"/>
+  <!-- Explicit launch parameters take precedence over loaded YAML values. -->
+  <param name="drone_$(arg drone_id)_ego_planner_node/grid_map/resolution" value="0.1"/>
+  <param name="drone_$(arg drone_id)_ego_planner_node/grid_map/local_update_range_x" value="5.5"/>
+  <param name="drone_$(arg drone_id)_ego_planner_node/grid_map/local_update_range_y" value="5.5"/>
+  <param name="drone_$(arg drone_id)_ego_planner_node/grid_map/local_map_margin" value="10"/>
+  <param name="drone_$(arg drone_id)_ego_planner_node/grid_map/ground_height" value="-0.01"/>
+  <param name="drone_$(arg drone_id)_ego_planner_node/grid_map/visualization_truncate_height" value="1.9"/>
+  <param name="drone_$(arg drone_id)_ego_planner_node/optimization/obstacle_clearance" value="$(arg safety_distance)" type="double"/>
+  <param name="drone_$(arg drone_id)_ego_planner_node/optimization/max_vel2" value="$(arg max_vel)" type="double"/>
+  <param name="drone_$(arg drone_id)_ego_planner_node/fsm/auto_start" value="$(arg auto_start)" type="bool"/>
+</launch>

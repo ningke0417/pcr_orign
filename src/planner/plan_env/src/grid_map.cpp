@@ -830,13 +830,16 @@ void GridMap::cloudCallback(const sensor_msgs::PointCloud2ConstPtr &img)
 
   double max_x, max_y, max_z, min_x, min_y, min_z;
 
-  min_x = mp_.map_max_boundary_(0);
-  min_y = mp_.map_max_boundary_(1);
-  min_z = mp_.map_max_boundary_(2);
+  // Distance gradients are needed in the free corridors around obstacles as
+  // well. Restricting ESDF updates to the cloud's bounding box leaves those
+  // corridors at the initialization distance, even though A* can enter them.
+  min_x = md_.camera_pos_(0) - mp_.local_update_range_(0);
+  min_y = md_.camera_pos_(1) - mp_.local_update_range_(1);
+  min_z = md_.camera_pos_(2) - mp_.local_update_range_(2);
 
-  max_x = mp_.map_min_boundary_(0);
-  max_y = mp_.map_min_boundary_(1);
-  max_z = mp_.map_min_boundary_(2);
+  max_x = md_.camera_pos_(0) + mp_.local_update_range_(0);
+  max_y = md_.camera_pos_(1) + mp_.local_update_range_(1);
+  max_z = md_.camera_pos_(2) + mp_.local_update_range_(2);
 
   for (size_t i = 0; i < latest_cloud.points.size(); ++i)
   {
@@ -1164,8 +1167,8 @@ void GridMap::updateESDF3d (){
         }
       }
 
-  md_.tmp_buffer1_.clear();
-  md_.tmp_buffer2_.clear();
+  // The following passes overwrite the working range. Keep the allocated
+  // elements: clear() made the indexed writes below access zero-size vectors.
 
   for (int x = min_esdf[0]; x <= max_esdf[0]; x++) {
     for (int y = min_esdf[1]; y <= max_esdf[1]; y++) {
@@ -1350,8 +1353,28 @@ void GridMap::interpolateTrilinearFirstGrad(double values[2][2][2],
   grad[0] *= mp_.resolution_inv_;
 }
 
+bool GridMap::outsideMapDistance(const Eigen::Vector3d &pos, double &dist, Eigen::Vector3d &grad)
+{
+  if (isInMap(pos)) return false;
+  grad.setZero();
+  if (!pos.allFinite())
+  {
+    dist = -std::numeric_limits<double>::infinity();
+    return true;
+  }
+  const Eigen::Vector3d closest = pos.cwiseMax(mp_.map_min_boundary_ + Eigen::Vector3d::Constant(1e-4))
+      .cwiseMin(mp_.map_max_boundary_ - Eigen::Vector3d::Constant(1e-4));
+  const Eigen::Vector3d offset = pos - closest;
+  const double norm = offset.norm();
+  dist = -norm;
+  if (std::isfinite(norm) && norm > 0.0) grad = -offset / norm;
+  return true;
+}
+
 void GridMap::evaluateEDT(const Eigen::Vector3d& pos,
                           double& dist){
+  Eigen::Vector3d boundary_grad;
+  if (outsideMapDistance(pos, dist, boundary_grad)) return;
   Eigen::Vector3d diff;
   Eigen::Vector3d sur_pts[2][2][2];
   getSurroundPts(pos, sur_pts, diff);
@@ -1364,6 +1387,8 @@ void GridMap::evaluateEDT(const Eigen::Vector3d& pos,
 
 void GridMap::evaluateFirstGrad(const Eigen::Vector3d& pos,
                                 Eigen::Vector3d& grad){
+  double boundary_dist;
+  if (outsideMapDistance(pos, boundary_dist, grad)) return;
   Eigen::Vector3d diff;
   Eigen::Vector3d sur_pts[2][2][2];
   getSurroundPts(pos, sur_pts, diff);
@@ -1377,6 +1402,7 @@ void GridMap::evaluateFirstGrad(const Eigen::Vector3d& pos,
 void GridMap::evaluateEDTWithGrad(const Eigen::Vector3d& pos,
                                   double& dist,
                                   Eigen::Vector3d& grad){
+  if (outsideMapDistance(pos, dist, grad)) return;
   Eigen::Vector3d diff;
   Eigen::Vector3d sur_pts[2][2][2];
   getSurroundPts(pos, sur_pts, diff);

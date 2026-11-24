@@ -70,9 +70,10 @@ private:
 
 	// bool (*checkOccupancyPtr)( const Eigen::Vector3d &pos );
 
-	inline bool checkOccupancy(const Eigen::Vector3d &pos) { return (bool)grid_map_->getInflateOccupancy(Eigen::Vector3d(pos.x(), pos.y(), 1.0)); }
+	inline bool checkOccupancy(const Eigen::Vector3d &pos) { return !grid_map_->isInMap(pos) || grid_map_->getInflateOccupancy(Eigen::Vector3d(pos.x(), pos.y(), 1.0)) != 0; }
 	inline bool checkOccupancy_esdf(const Eigen::Vector3d &pos, double ddd, double lll)
 	{
+		if (!grid_map_->isInMap(pos)) return true;
 		// Eigen::Vector3d pos_x = pos + ddd * Eigen::Vector3d(lll, 0.0, 0.0);
 		// Eigen::Vector3d pos_x2 = pos + ddd * Eigen::Vector3d(-lll, 0.0, 0.0);
 		// Eigen::Vector3d pos_y = pos + ddd * Eigen::Vector3d(0.0, (1 / lll), 0.0);
@@ -92,7 +93,7 @@ private:
 				// Eigen::Vector2d pos = Eigen::Vector2d(c.x(), c.y()) + 0.0 * Eigen::Vector2d(1.0*(shape_to_graph[point_i].x() - c.x()), (1.0/1.0)*(shape_to_graph[point_i].y()-c.y()));
 				Eigen::Vector3d pos_real = Eigen::Vector3d(pos.x(), pos.y(), 1.0) + step_obs * ddd * Eigen::Vector3d(lll * cos(theta), (1 / lll) * sin(theta), 0.0);
 
-				if (grid_map_->getDistance(pos_real) < 0.1)
+				if (!grid_map_->isInMap(pos_real) || grid_map_->getDistance(pos_real) < 0.1)
 				{
 					return true;
 				}
@@ -108,6 +109,7 @@ private:
 
 	inline bool checkOccupancy(const Eigen::Vector3d &pos, double ddd, double lll)
 	{
+		if (!grid_map_->isInMap(pos)) return true;
 		for (double theta = 0.0; theta < 2 * M_PI; theta += M_PI / 8.0)
 		{
 			for (double step_obs = 0.0; step_obs < 1.0; step_obs = step_obs + 0.05)

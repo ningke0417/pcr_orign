@@ -1,0 +1,104 @@
+# Eight slots match the distributed reference. PCR graph/ICP settings and weights
+# inherit config/20.yaml; scene overrides are in comparison_8uav_member.launch.
+size_swarm: 8
+vis_hor: 5.0
+max_graph_aware: 10.43
+vis_step: 20
+global_goal:
+  swarm_central_pos:
+    x: 10.0
+    y: 0.0
+    z: 1.5
+  swarm_scale: 1.0
+fsm:
+  formation_error_clearance: 100.05
+  aware_clearance: 10000
+  softmax_aware_clearance: 100.33
+  ca_delta_t: 3.5
+  isuse_local_vel: true
+  replan_trajectory_time: 0.05
+optimization:
+  formation_type: 1
+  formation_method_type: 0
+  constrain_points_perPiece: 4
+  weight_obstacle: 10000.0
+  weight_swarm: 10000.0
+  weight_feasibility: 10000.0
+  weight_sqrvariance: 80.0
+  weight_time: 80.0
+  weight_formation: 0.0
+  weight_formation2: 0.0
+  weight_graph: 300.0
+  weight_icp: 1.0
+  error_to_leader: 0.01
+  use_graph: false
+  use_icp: true
+  use_sparse: false
+  obstacle_clearance: 0.2
+  swarm_clearance: 0.5
+  icp_clearance: 0.01
+  sampling_time_step: 0.2
+  max_trajectory_duration: 45.0
+  enable_fix_step: true
+  enable_decouple_swarm_graph: true
+  is_opt_formation_z: false
+  fixed_formation_z: 1.5
+search:
+  astar_resolution: 0.25
+  reso_acc: 10.0
+  max_tau: 1.6
+  init_max_tau: 0.8
+  max_vel: 0.6
+  max_acc: 6.0
+  w_time: 500000.0
+  horizon: 10
+  lambda_heu: 5.0
+  resolution_astar: 0.2
+  time_resolution: 0.01
+  margin: 0.2
+  allocate_num: 10000000
+  check_num: 30
+  use_kino: false
+  max_acc_z: 2.0
+initial_swarm_size: 8
+sparse_num: 8
+t1_relative_pos_0:
+  x: 0.5
+  y: -1.5
+  z: 0.0
+sparse_0: 0
+t1_relative_pos_1:
+  x: 0.5
+  y: -0.5
+  z: 0.0
+sparse_1: 1
+t1_relative_pos_2:
+  x: 0.5
+  y: 0.5
+  z: 0.0
+sparse_2: 2
+t1_relative_pos_3:
+  x: 0.5
+  y: 1.5
+  z: 0.0
+sparse_3: 3
+t1_relative_pos_4:
+  x: -0.5
+  y: -1.5
+  z: 0.0
+sparse_4: 4
+t1_relative_pos_5:
+  x: -0.5
+  y: -0.5
+  z: 0.0
+sparse_5: 5
+t1_relative_pos_6:
+  x: -0.5
+  y: 0.5
+  z: 0.0
+sparse_6: 6
+t1_relative_pos_7:
+  x: -0.5
+  y: 1.5
+  z: 0.0
+sparse_7: 7

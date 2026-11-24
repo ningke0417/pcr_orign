@@ -46,7 +46,7 @@ namespace ego_planner
     nh.param("vis_hor", vis_hor, 4.5);
     nh.param("optimization/formation_type", type_form, -1);
 
-    have_trigger_ = !flag_realworld_experiment_;
+    nh.param("fsm/auto_start", have_trigger_, !flag_realworld_experiment_);
     planning_horizen_ = planning_horizen_max_;
     planning_horizen_min_ = 3.0;
     swarm_near.resize(size_swarm);
@@ -135,7 +135,8 @@ namespace ego_planner
     for (int i = 0; i < size_swarm; i++)
       swarm_des_id.push_back(i);
 
-    num_now_ = 20;
+    nh.param("initial_swarm_size", num_now_, std::min(20, size_swarm));
+    num_now_ = std::max(1, std::min(num_now_, size_swarm));
     form_change = 0;
     assig_pos_.resize(size_swarm);
     assig_id.resize(num_now_);
@@ -143,10 +144,11 @@ namespace ego_planner
       assig_id[i] = i;
     for (int i = num_now_; i < size_swarm; i++)
       swarm_des_id[i] = -99;
-    // choose the model of global goal setting
-    setGlobalGoal(nh);
     odom_pos_ = Eigen::Vector3d(-99.0, -99.0, -99.0);
     id_remap_ = planner_manager_->pp_.drone_id;
+    // Preset targets spin callbacks while waiting for odometry. Initialize
+    // these fields first and preserve the pose received during that wait.
+    setGlobalGoal(nh);
     // for ztr debug---------------------------------------------------------------------------------------
     log_ztr2.open("/home/ztr/Pipline-Swarm-Formation/log/fsm_drone_id_" + std::to_string(planner_manager_->pp_.drone_id) + ".txt");
     // for ztr debug---------------------------------------------------------------------------------------
@@ -332,13 +334,13 @@ namespace ego_planner
     else if (target_type_ == TARGET_TYPE::SWARM_PRESET_TARGET)
     {
       swarm_formation_trigger_sub_ = nh.subscribe("/traj_start_trigger", 1, &EGOReplanFSM::triggerCallback, this);
-      ROS_INFO("Wait for 1 second.");
-      int count = 0;
-      while (ros::ok() && count++ < 1000)
-      {
-        ros::spinOnce();
-        ros::Duration(0.001).sleep();
-      }
+      //ROS_INFO("Wait for 1 second.");
+      //int count = 0;
+      //while (ros::ok() && count++ < 1000)
+      //{
+      // ros::spinOnce();
+      // ros::Duration(0.001).sleep();
+      //}
       ROS_WARN("Waiting for trigger from [n3ctrl] from RC");
 
       while (ros::ok() && (!have_odom_ || !have_trigger_))
@@ -589,7 +591,17 @@ namespace ego_planner
       else
       {
         flag_relan_astar_ = true;
-        changeFSMExecState(REPLAN_TRAJ, "FSM");
+        const auto &old = planner_manager_->traj_.local_traj;
+        if (!have_local_traj_ || old.traj.getPieceNum() == 0 ||
+            ros::Time::now().toSec() + emergency_time_ >= old.start_time + old.duration)
+        {
+          ROS_WARN_THROTTLE(1.0, "[drone %d] Replanning failed and old trajectory is expiring; stopping",
+                            planner_manager_->pp_.drone_id);
+          flag_escape_emergency_ = true;
+          changeFSMExecState(EMERGENCY_STOP, "REPLAN_FAILED");
+        }
+        else
+          changeFSMExecState(REPLAN_TRAJ, "FSM");
       }
 
       break;
@@ -643,7 +655,7 @@ namespace ego_planner
       // cout << "[EMERGENCY_STOP] : " << flag_escape_emergency_ << endl;
       if (flag_escape_emergency_) // Avoiding repeated calls
       {
-        callEmergencyStop(odom_pos_);
+        if (!callEmergencyStop(odom_pos_)) goto force_return;
       }
       else
       {
@@ -723,7 +735,8 @@ namespace ego_planner
 
     /* ---------- check trajectory ---------- */
     constexpr double time_step = 0.01;
-    double t_cur = ros::Time::now().toSec() - info->start_time;
+    double t_cur = std::max(0.0, std::min(info->duration,
+        ros::Time::now().toSec() - info->start_time));
     Eigen::Vector3d p_cur = info->traj.getPos(t_cur);
     const double CLEARANCE = 0.8 * planner_manager_->getSwarmClearance();
     double t_cur_global = ros::Time::now().toSec();
@@ -2375,7 +2388,8 @@ namespace ego_planner
   {
     // double t_debug_start = ros::Time::now().toSec();
     LocalTrajData *info = &planner_manager_->traj_.local_traj;
-    double t_cur = ros::Time::now().toSec() - info->start_time;
+    double t_cur = std::max(0.0, std::min(info->duration,
+        ros::Time::now().toSec() - info->start_time));
 
     start_pt_ = info->traj.getPos(t_cur);
     start_vel_ = info->traj.getVel(t_cur);
@@ -2534,16 +2548,18 @@ namespace ego_planner
     double swarm_size = planner_manager_->traj_.swarm_local_goal.size();
 
     Eigen::Vector3d desired_start_pt, desired_start_vel, desired_start_acc;
-    double desired_start_time;
+    double desired_start_time = ros::Time::now().toSec();
 
     // if (have_local_traj_ && use_formation)
     if (have_local_traj_ && use_formation)
     {
       desired_start_time = ros::Time::now().toSec() + replan_trajectory_time_;
       LocalTrajData *info = &planner_manager_->traj_.local_traj;
-      desired_start_pt = info->traj.getPos(desired_start_time - info->start_time);
-      desired_start_vel = info->traj.getVel(desired_start_time - info->start_time);
-      desired_start_acc = info->traj.getAcc(desired_start_time - info->start_time);
+      const double sample_time = std::max(0.0, std::min(info->duration,
+          desired_start_time - info->start_time));
+      desired_start_pt = info->traj.getPos(sample_time);
+      desired_start_vel = info->traj.getVel(sample_time);
+      desired_start_acc = info->traj.getAcc(sample_time);
     }
     else
     {
@@ -2576,7 +2592,16 @@ namespace ego_planner
   // 生成emergency停止的minco轨迹，并可视化，尚未细看其中EmergencyStop函数???
   bool EGOReplanFSM::callEmergencyStop(Eigen::Vector3d stop_pos)
   {
+    const auto &map = planner_manager_->grid_map_;
+    if (!map->isInMap(stop_pos) || map->getInflateOccupancy(stop_pos) != 0)
+    {
+      ROS_ERROR_THROTTLE(1.0, "[drone %d] Cannot publish stop at invalid/occupied position",
+                         planner_manager_->pp_.drone_id);
+      return false;
+    }
     planner_manager_->EmergencyStop(stop_pos);
+    if (!planner_manager_->ploy_traj_opt_->trajectoryWithinMap(planner_manager_->traj_.local_traj.traj))
+      return false;
 
     traj_utils::PolyTraj msg;
     polyTraj2ROSMsg(msg);

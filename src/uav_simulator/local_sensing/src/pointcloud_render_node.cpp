@@ -34,6 +34,7 @@ bool has_odom(false);
 nav_msgs::Odometry _odom;
 
 double sensing_horizon, sensing_rate, estimation_rate;
+bool full_360_sensing = false;
 double _x_size, _y_size, _z_size;
 double _gl_xl, _gl_yl, _gl_zl;
 double _resolution, _inv_resolution;
@@ -133,12 +134,10 @@ void renderSensedPoints(const ros::TimerEvent& event) {
                       pt.y - _odom.pose.pose.position.y,
                       pt.z - _odom.pose.pose.position.z);
 
-      if (pt_vec.normalized().dot(yaw_vec) < 0.5) continue; 
+      if (!full_360_sensing && pt_vec.normalized().dot(yaw_vec) < 0.5) continue;
 
       _local_map.points.push_back(pt);
     }
-  } else {
-    return;
   }
 
   _local_map.width = _local_map.points.size();
@@ -147,6 +146,7 @@ void renderSensedPoints(const ros::TimerEvent& event) {
 
   pcl::toROSMsg(_local_map, _local_map_pcd);
   _local_map_pcd.header.frame_id = "map";
+  _local_map_pcd.header.stamp = _odom.header.stamp;
 
   pub_cloud.publish(_local_map_pcd);
 }
@@ -161,6 +161,7 @@ int main(int argc, char** argv) {
   ros::NodeHandle nh("~");
 
   nh.getParam("sensing_horizon", sensing_horizon);
+  nh.param("full_360_sensing", full_360_sensing, false);
   nh.getParam("sensing_rate", sensing_rate);
   nh.getParam("estimation_rate", estimation_rate);
 

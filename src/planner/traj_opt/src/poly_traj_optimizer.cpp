@@ -1,9 +1,31 @@
 
 #include "optimizer/poly_traj_optimizer.h"
+#include <limits>
 // using namespace std;
 
 namespace ego_planner
 {
+  bool PolyTrajOptimizer::trajectoryWithinMap(const poly_traj::Trajectory &trajectory,
+                                             double *violation_time) const
+  {
+    if (!grid_map_) return false;
+    const Eigen::Vector3d margin = Eigen::Vector3d::Constant(1e-4);
+    const Eigen::Vector3d lower = grid_map_->getOrigin() + margin;
+    const Eigen::Vector3d upper = grid_map_->getOrigin() + grid_map_->getMapSize() - margin;
+    if (!trajectory.checkPositionBounds(lower, upper, violation_time)) return false;
+    // PolyTraj transports float32 coefficients/durations. Validate the same
+    // rounded polynomial the trajectory server will execute as well.
+    std::vector<double> durations;
+    std::vector<poly_traj::CoefficientMat> coefficients;
+    for (int i = 0; i < trajectory.getPieceNum(); ++i)
+    {
+      durations.push_back(static_cast<float>(trajectory[i].getDuration()));
+      coefficients.push_back(trajectory[i].getCoeffMat().cast<float>().cast<double>());
+    }
+    return poly_traj::Trajectory(durations, coefficients)
+        .checkPositionBounds(lower, upper, violation_time);
+  }
+
   /* main planning API */
   bool PolyTrajOptimizer::optimizeTrajectory_lbfgs(
       const Eigen::MatrixXd &iniState, const Eigen::MatrixXd &finState,
@@ -11,6 +33,22 @@ namespace ego_planner
       Eigen::MatrixXd &optimal_points, const bool use_formation)
   {
     // ztr_log3<<"in optimizeTrajectory_lbfgs"<<endl;
+    last_failure_ = FailureReason::INVALID_INPUT;
+    is_set_swarm_advanced_ = false;
+    time_cps_.resetBuffer();
+    force_stop_type_ = DONT_STOP;
+    if (initT.size() < 1 || !initT.allFinite() ||
+        (initT.array() <= 1e-6).any() || !std::isfinite(initT.sum()) ||
+        initT.sum() > max_trajectory_duration_ || !initInnerPts.allFinite() ||
+        !iniState.allFinite() || !finState.allFinite())
+      return false;
+    if (!grid_map_ || !grid_map_->isInMap(Eigen::Vector3d(iniState.col(0))) ||
+        !grid_map_->isInMap(Eigen::Vector3d(finState.col(0))))
+    {
+      last_failure_ = FailureReason::OUT_OF_MAP;
+      return false;
+    }
+    last_failure_ = FailureReason::NONE;
     init_start_zy[0] = iniState(0, 0);
     init_start_zy[1] = iniState(1, 0);
     init_start_zy[2] = iniState(2, 0);
@@ -30,6 +68,7 @@ namespace ego_planner
     
     if (initInnerPts.cols() != (initT.size() - 1))
     {
+      last_failure_ = FailureReason::INVALID_INPUT;
       ROS_ERROR("initInnerPts.cols() != (initT.size()-1)");
       return false;
     }
@@ -45,6 +84,7 @@ namespace ego_planner
 
     ros::Time t0 = ros::Time::now(), t1, t2;
     bool use_formation_temp = use_formation_;
+    use_formation_ = use_formation_ && use_formation;
 
     double q[variable_num_];
     memcpy(q, initInnerPts.data(), initInnerPts.size() * sizeof(q[0]));
@@ -80,6 +120,12 @@ namespace ego_planner
     opt_local_min_loop_sum_num_ = 0;
     if (enable_fix_step_)
       setSwarmGraphInAdavanced(initT);
+    if (last_failure_ == FailureReason::REGISTRATION_FAILED)
+    {
+      use_formation_ = use_formation_temp;
+      time_cps_.resetBuffer();
+      return false;
+    }
     iter_num_ = 0;
     force_stop_type_ = DONT_STOP;
     /* ---------- optimize ---------- */
@@ -94,6 +140,35 @@ namespace ego_planner
                                        &lbfgs_params);
 
     use_formation_ = use_formation_temp;
+    if (last_failure_ == FailureReason::REGISTRATION_FAILED)
+    {
+      time_cps_.resetBuffer();
+      return false;
+    }
+    // A rejected line-search trial must not become a published trajectory.
+    Eigen::Map<const Eigen::MatrixXd> final_points(q, 3, piece_num_ - 1);
+    Eigen::Map<const Eigen::VectorXd> final_virtual_times(
+        q + initInnerPts.size(), piece_num_);
+    Eigen::VectorXd final_times(piece_num_);
+    VirtualT2RealT(final_virtual_times, final_times);
+    if (result == lbfgs::LBFGSERR_INVALID_FUNCVAL ||
+        !std::isfinite(final_cost) || !final_points.allFinite() ||
+        !final_times.allFinite() || (final_times.array() <= 1e-6).any() ||
+        final_times.sum() > max_trajectory_duration_)
+    {
+      if (enable_fix_step_)
+        time_cps_.resetBuffer();
+      return false;
+    }
+    // The solver restores q after a failed line search. Reconstruct from that
+    // accepted state, rather than retaining the last trial's MINCO buffers.
+    jerkOpt_.generate(final_points, final_times);
+    if (!jerkOpt_.get_b().allFinite())
+    {
+      if (enable_fix_step_)
+        time_cps_.resetBuffer();
+      return false;
+    }
     // ztr_log3<<"after lbfgs_optimize"<<endl;
     t2 = ros::Time::now();
     double optimize_time_ms = (t2 - t1).toSec() * 1000;
@@ -121,10 +196,16 @@ namespace ego_planner
     bool occ = false;
     double collision_relative_time;
     occ = checkCollision(collision_relative_time);
-    return true; // shit
     if (occ)
     {
-      printf("\033[31m[Optimization]: Failed! Trajectory is collied in the relative time=%5.3f \n\033[0m", collision_relative_time);
+      if (last_failure_ == FailureReason::OUT_OF_MAP)
+        ROS_WARN_THROTTLE(1.0, "[drone %d] Rejecting trajectory outside map (relative time %.3f)",
+                          drone_id_, collision_relative_time);
+      else
+      {
+        last_failure_ = FailureReason::COLLISION;
+        printf("\033[31m[Optimization]: Failed! Trajectory is collied in the relative time=%5.3f \n\033[0m", collision_relative_time);
+      }
       return false;
     }
     else
@@ -150,11 +231,38 @@ namespace ego_planner
 
   //     }
   //   }
+  bool PolyTrajOptimizer::registrationReference(double time_offset, Eigen::Vector3d &reference)
+  {
+    if (!swarm_trajs_ || !std::isfinite(time_offset) || swarm_des_opt.size() < 5)
+      return false;
+    std::vector<Eigen::Vector3d> desired, predicted;
+    for (size_t id = 0; id < swarm_des_opt.size(); ++id)
+    {
+      if (static_cast<int>(id) == drone_id_) continue;
+      if (id >= swarm_trajs_->size()) return false;
+      const auto &peer = swarm_trajs_->at(id);
+      if (peer.drone_id != static_cast<int>(id) || peer.traj.getPieceNum() == 0 ||
+          !std::isfinite(peer.start_time) || !std::isfinite(peer.duration) || peer.duration <= 0.0)
+        return false;
+      const double time = std::max(0.0, std::min(peer.duration,
+          t_now_ + time_offset - peer.start_time));
+      desired.push_back(swarm_des_opt[id]);
+      predicted.push_back(peer.traj.getPos(time));
+    }
+    return pointCloudRegistration(desired, predicted, false, Eigen::Vector3d::Zero(), reference);
+  }
+
   void PolyTrajOptimizer::setSwarmGraphInAdavanced(const Eigen::VectorXd initT)
   {
     is_set_swarm_advanced_ = false;
+    // Missing/invalid peer data must use the global-goal fallback too.
+    if (use_formation_ && use_icp_)
+      last_failure_ = FailureReason::REGISTRATION_FAILED;
     if (use_formation_)
     {
+      Eigen::Vector3d initial_reference;
+      if (use_icp_ && !registrationReference(0.0, initial_reference))
+        return;
 
       // int size = swarm_trajs_->size();
       int size = swarm_trajs_->size();
@@ -297,44 +405,15 @@ namespace ego_planner
         /***************************************************************************************************************************************icp */
         if (use_icp_)
         {
-          std::vector<Eigen::Vector3d> point_des_;
-          std::vector<Eigen::Vector3d> point_cur_;
-          point_des_.resize(swarm_des_opt.size() - 1);
-          point_cur_.resize(swarm_des_opt.size() - 1);
-          int j_icp = 0;
-          for (int i_icp = 0; i_icp < swarm_des_opt.size(); i_icp++)
+          Eigen::Vector3d reference;
+          if (i == 0)
+            reference = initial_reference;
+          else if (!registrationReference(accumulated_step_swarm, reference))
           {
-            if (i_icp != drone_id_)
-            {
-              if (size == swarm_des_opt.size())
-              {
-
-                Eigen::Vector3d pos_icp;
-                Eigen::Vector3d vel_icp;
-                double t_in_st = time_cps_.relative_time_ahead_for_icp(i_icp) + accumulated_step_swarm;
-                if (t_in_st < swarm_trajs_->at(i_icp).duration)
-                {
-                  pos_icp = swarm_trajs_->at(i_icp).traj.getPos(t_in_st);
-                }
-                else
-                {
-                  double exceed_time = t_in_st - swarm_trajs_->at(i_icp).duration;
-                  vel_icp = swarm_trajs_->at(i_icp).traj.getVel(swarm_trajs_->at(i_icp).duration);
-                  pos_icp = swarm_trajs_->at(i_icp).traj.getPos(swarm_trajs_->at(i_icp).duration);
-                }
-                point_des_[j_icp] = swarm_des_opt[i_icp];
-                point_cur_[j_icp] = pos_icp;
-              }
-              j_icp++;
-            }
+            time_cps_.resetBuffer();
+            return;
           }
-          if (point_cur_.size() + 1 == swarm_des_opt.size() && use_icp_)
-          {
-            Eigen::Vector3d mypos_now_fack;
-            Eigen::Vector3d icp_pos_des = pointCloudRegistration(point_des_, point_cur_, false, mypos_now_fack);
-            time_cps_.icp_pos[i] = icp_pos_des;
-            // cout << "icp pos#################################################################::::" << icp_pos_des << endl;
-          }
+          time_cps_.icp_pos[i] = reference;
         }
 
         /***************************************************************************************************************************************icp */
@@ -413,14 +492,7 @@ namespace ego_planner
           // time_cps_.local_min_advance_sets[i] = time_cps_.icp_pos[i];
           double t_opt2 = ros::Time::now().toSec();
 
-          if (use_icp_)
-          {
-            time_cps_.local_min_advance_sets[i] = time_cps_.icp_pos[i];
-            // if ((local_min - time_cps_.icp_pos[i]).norm() > 0.3)
-            // {
-            //   time_cps_.local_min_advance_sets[i] = time_cps_.icp_pos[i];
-            // }
-          }
+
 
           // debug: print the optimization result
           // if (result != lbfgs::LBFGS_CONVERGENCE && result != lbfgs::LBFGS_ALREADY_MINIMIZED)
@@ -435,6 +507,7 @@ namespace ego_planner
       }
 
       is_set_swarm_advanced_ = true;
+      last_failure_ = FailureReason::NONE;
     }
     // ztr_log3<<"is_set_swarm_advanced_ true"<<endl;
     return;
@@ -547,6 +620,14 @@ namespace ego_planner
     /* check the safety of trajectory */
     double T_end;
     poly_traj::Trajectory traj = jerkOpt_.getTraj();
+    double violation_time = 0.0;
+    if (!trajectoryWithinMap(traj, &violation_time))
+    {
+      last_failure_ = FailureReason::OUT_OF_MAP;
+      const double duration = traj.getTotalDuration();
+      collision_relative_time = duration > 0.0 ? violation_time / duration : 0.0;
+      return true;
+    }
     if (enable_fix_step_)
     {
       // fixed time step sampling
@@ -612,17 +693,33 @@ namespace ego_planner
     Eigen::VectorXd gradT(opt->piece_num_);
     double smoo_cost = 0, time_cost = 0;
 
-    opt->jerkOpt_.generate(P, T);
+    // Non-finite trial durations previously reached floor(T.sum()/step),
+    // producing a negative Eigen allocation and aborting the whole node.
+    if (!P.allFinite() || !t.allFinite() || !T.allFinite() ||
+        (T.array() <= 1e-6).any())
+    {
+      gradP.setZero();
+      gradt.setZero();
+      return std::numeric_limits<double>::infinity();
+    }
 
     // debug
     // if (opt->iter_num_ == 0)
     // cout << "[debug] init total: " << T.sum() << ", T: " << T.transpose() << endl;
 
-    if (T.sum() > 20.00)
+    if (T.sum() > opt->max_trajectory_duration_)
     {
       gradP.setZero();
       gradt.setZero();
       return 9999999.0;
+    }
+
+    opt->jerkOpt_.generate(P, T);
+    if (!opt->jerkOpt_.get_b().allFinite())
+    {
+      gradP.setZero();
+      gradt.setZero();
+      return std::numeric_limits<double>::infinity();
     }
 
     opt->initAndGetSmoothnessGradCost2PT(gradT, smoo_cost); // Smoothness cost
@@ -638,6 +735,13 @@ namespace ego_planner
     {
       obs_swarm_feas_qvar_costs.resize(6);
       opt->addPVAGradCost2CTwithFixedCtrlPoints(gradT, obs_swarm_feas_qvar_costs, opt->cps_num_prePiece_);
+    }
+
+    if (opt->last_failure_ == FailureReason::REGISTRATION_FAILED)
+    {
+      gradP.setZero();
+      gradt.setZero();
+      return std::numeric_limits<double>::infinity();
     }
 
     opt->jerkOpt_.getGrad2TP(gradT, gradP);
@@ -658,7 +762,14 @@ namespace ego_planner
     // }
 
     opt->iter_num_ += 1;
-    return smoo_cost + obs_swarm_feas_qvar_costs.sum() + time_cost;
+    const double total_cost = smoo_cost + obs_swarm_feas_qvar_costs.sum() + time_cost;
+    if (!std::isfinite(total_cost) || !gradP.allFinite() || !gradt.allFinite())
+    {
+      gradP.setZero();
+      gradt.setZero();
+      return std::numeric_limits<double>::infinity();
+    }
+    return total_cost;
   }
 
   int PolyTrajOptimizer::earlyExitCallback(void *func_data, const double *x, const double *g,
@@ -1319,47 +1430,15 @@ namespace ego_planner
         /***************************************************************************************************************************************icp */
         if (use_icp_)
         {
-          std::vector<Eigen::Vector3d> point_des_;
-          std::vector<Eigen::Vector3d> point_cur_;
-          point_des_.resize(swarm_des_opt.size() - 1);
-          point_cur_.resize(swarm_des_opt.size() - 1);
-          int j_icp = 0;
-          for (int i_icp = 0; i_icp < swarm_des_opt.size(); i_icp++)
+          Eigen::Vector3d reference;
+          if (!registrationReference(i * step, reference))
           {
-            if (i_icp != drone_id_)
-            {
-              if (size == swarm_des_opt.size())
-              {
-
-                Eigen::Vector3d pos_icp;
-                Eigen::Vector3d vel_icp;
-                double t_in_st = time_cps_.relative_time_ahead_for_icp(i_icp) + i * step;
-                if (t_in_st < swarm_trajs_->at(i_icp).duration)
-                {
-                  pos_icp = swarm_trajs_->at(i_icp).traj.getPos(t_in_st);
-                }
-                else
-                {
-                  double exceed_time = t_in_st - swarm_trajs_->at(i_icp).duration;
-                  vel_icp = swarm_trajs_->at(i_icp).traj.getVel(swarm_trajs_->at(i_icp).duration);
-                  pos_icp = swarm_trajs_->at(i_icp).traj.getPos(swarm_trajs_->at(i_icp).duration);
-                }
-                point_des_[j_icp] = swarm_des_opt[i_icp];
-                point_cur_[j_icp] = pos_icp;
-              }
-              j_icp++;
-            }
+            last_failure_ = FailureReason::REGISTRATION_FAILED;
+            force_stop_type_ = STOP_FOR_ERROR;
+            is_set_swarm_advanced_ = false;
+            return 0.0;
           }
-          if (point_cur_.size() + 1 == swarm_des_opt.size())
-          {
-            ros::Time t1 = ros::Time::now();
-            Eigen::Vector3d mypos_now_fack;
-            Eigen::Vector3d icp_pos_des = pointCloudRegistration(point_des_, point_cur_, false, mypos_now_fack);
-            ros::Time t2 = ros::Time::now();
-            // cout << "t2-t1!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!:::" << (t2 - t1).toSec() << endl;
-            time_cps_.icp_pos.emplace_back(icp_pos_des);
-            // cout << "icp pos#################################################################::::" << icp_pos_des << endl;
-          }
+          time_cps_.icp_pos.emplace_back(reference);
         }
 
         /***************************************************************************************************************************************icp */
@@ -1370,6 +1449,11 @@ namespace ego_planner
       {
         for (int i = time_cps_.sampling_num; i < k; i++)
         {
+          if (use_icp_)
+          {
+            time_cps_.local_min_advance_sets.emplace_back(time_cps_.icp_pos[i]);
+            continue;
+          }
           // get_changeformation(swarm_des_zy_, kkk-1, k-time_cps_.sampling_num);
           // setDesiredFormation2(swarm_des_zy_);
           // init optimizer
@@ -2359,7 +2443,7 @@ namespace ego_planner
     std::vector<Eigen::Vector3d> a_star_path;
     /* astar search and get the simple path*/
     // simple_path = a_star_->astarSearchAndGetSimplePath(grid_map_->getResolution(), start_pos, end_pos);
-    bool success = a_star_->astarSearchAndGetSimplePath(grid_map_->getResolution(), start_pos, end_pos, simple_path, a_star_path, 0.2, 1.0);
+    bool success = a_star_->astarSearchAndGetSimplePath(astar_resolution_, start_pos, end_pos, simple_path, a_star_path, 0.2, 1.0);
     if (!success)
     {
       // ROS_WARN("unable do astarSearchAndGetSimplePath");
@@ -3057,6 +3141,11 @@ namespace ego_planner
   {
     grid_map_ = map;
     double resolution = grid_map_->getResolution();
+    // Retain the original front-end search spacing when a comparison scene
+    // uses a finer occupancy map. Older launches keep their map resolution.
+    nh.param("search/astar_resolution", astar_resolution_, resolution);
+    if (astar_resolution_ <= 0.0)
+      astar_resolution_ = resolution;
     Eigen::Vector3d map_size = grid_map_->getMapSize();
     Eigen::Vector3i pool_size;
     pool_size << int(map_size(0) / resolution), int(map_size(1) / resolution), int(map_size(2) / resolution);
@@ -3609,99 +3698,58 @@ namespace ego_planner
   }
 
   /**********************************************************************************************************************************************************点云匹配代码*/
-  Eigen::Vector3d PolyTrajOptimizer::pointCloudRegistration(std::vector<Eigen::Vector3d> &point_des, std::vector<Eigen::Vector3d> &point_cur, bool for_remap, Eigen::Vector3d mypos_now)
+  bool PolyTrajOptimizer::pointCloudRegistration(
+      const std::vector<Eigen::Vector3d> &point_des,
+      const std::vector<Eigen::Vector3d> &point_cur,
+      bool for_remap, const Eigen::Vector3d &mypos_now, Eigen::Vector3d &reference)
   {
-
-    // 1. 生成点云数据
-    double t_ran1 = ros::Time::now().toSec();
-
-    pcl::PointCloud<pcl::PointXYZ>::Ptr original_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::PointCloud<pcl::PointXYZ>::Ptr original_cloud_all(new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::PointCloud<pcl::PointXYZ>::Ptr disturbed_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-    original_cloud->resize(point_des.size());
-    original_cloud_all->resize(swarm_des_opt.size());
-    disturbed_cloud->resize(point_cur.size());
-    for (int i = 0; i < point_des.size(); i++)
+    if (point_des.size() != point_cur.size() || point_des.size() < 4 ||
+        swarm_des_opt.empty() || drone_id_ < 0 ||
+        static_cast<size_t>(drone_id_) >= swarm_des_opt.size() ||
+        (for_remap && !mypos_now.allFinite()))
+      return false;
+    auto cloudFromPoints = [](const std::vector<Eigen::Vector3d> &points)
     {
-      original_cloud->points[i].x = point_des[i][0];
-      original_cloud->points[i].y = point_des[i][1];
-      original_cloud->points[i].z = point_des[i][2];
-      // if(drone_id_==19)
-      // {
-      //   cout<<"iiiiiiiiiiiiiii::::"<<i<<endl;
-      //   cout<<"point_des111!!!!!!!!!!!!!!!!!!!!:::"<<point_des[i]<<endl;
-      // }
-    }
-
-    for (int i = 0; i < swarm_des_opt.size(); i++)
-    {
-      original_cloud_all->points[i].x = swarm_des_opt[i][0];
-      original_cloud_all->points[i].y = swarm_des_opt[i][1];
-      original_cloud_all->points[i].z = swarm_des_opt[i][2];
-    }
-    // cout<<"###############################################################################"<<endl;
-    for (int i = 0; i < point_cur.size(); i++)
-    {
-      disturbed_cloud->points[i].x = point_cur[i][0];
-      disturbed_cloud->points[i].y = point_cur[i][1];
-      disturbed_cloud->points[i].z = point_cur[i][2];
-      // if(drone_id_==19)
-      // {
-      //   cout<<"iiiiiiiiiiiiiii::::"<<i<<endl;
-      //   cout<<"point_cur111!!!!!!!!!!!!!!!!!!!!:::"<<point_cur[i]<<endl;
-      // }
-    }
-    // 2. 估计尺度因子
-
-    int n_samples = 500;
-    double threshold = 0.2;
-    double estimated_scale = estimateScaleRANSAC(original_cloud, disturbed_cloud, n_samples, threshold);
-    double t_ran2 = ros::Time::now().toSec();
-    // ROS_ERROR("time ransac scale:::::::::%f", (t_ran2 - t_ran1) * 1000);
-    // std::cout << "   估计尺度因子: " << estimated_scale << std::endl;
-
-    // 3. 使用RANSAC进行配准
-
+      pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+      for (const auto &point : points)
+      {
+        if (!point.allFinite()) return pcl::PointCloud<pcl::PointXYZ>::Ptr();
+        pcl::PointXYZ value(point.x(), point.y(), point.z());
+        if (!std::isfinite(value.x) || !std::isfinite(value.y) || !std::isfinite(value.z))
+          return pcl::PointCloud<pcl::PointXYZ>::Ptr();
+        cloud->push_back(value);
+      }
+      return cloud;
+    };
+    auto source = cloudFromPoints(point_des);
+    auto target = cloudFromPoints(point_cur);
+    auto full_template = cloudFromPoints(swarm_des_opt);
+    if (!source || !target || !full_template) return false;
+    const double scale = estimateScaleRANSAC(source, target, 500, 0.2);
     Eigen::Matrix4f transformation;
-    int inliers;
-
-    ransacRegistrationWithScale(
-        original_cloud, disturbed_cloud,
-        estimated_scale,
-        transformation, inliers);
-
-
-    // 4. 分析结果
-
-    // 5. 计算配准质量指标
-
-    // 应用变换到原始点云
-    pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::transformPointCloud(*original_cloud_all, *transformed_cloud, transformation);
-
-    // 计算点到点的平均距离
-    Eigen::Vector3d icp_despos;
-    if (!for_remap)
-    {
-      icp_despos = Eigen::Vector3d(0, 0, 0);
-      icp_despos[0] = transformed_cloud->points[drone_id_].x;
-      icp_despos[1] = transformed_cloud->points[drone_id_].y;
-      icp_despos[2] = transformed_cloud->points[drone_id_].z;
-      // cout << "transformed_cloud.x()::" << transformed_cloud->points[drone_id_].x << endl;
-      // cout << "transformed_cloud.y()::" << transformed_cloud->points[drone_id_].y << endl;
-      // cout << "transformed_cloud.z()::" << transformed_cloud->points[drone_id_].z << endl;
-    }
+    int inliers = 0;
+    if (!ransacRegistrationWithScale(source, target, scale, transformation, inliers))
+      return false;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr transformed(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::transformPointCloud(*full_template, *transformed, transformation);
+    Eigen::Vector3d candidate;
+    const int previous_assignment = id_remap_icp;
+    if (for_remap)
+      candidate = findCorrespondingPoint(transformed, target, mypos_now);
     else
     {
-      // 5. 【新增】查找真正的对应点（使用KD树最近邻搜索）
-      // double t_ran11 = ros::Time::now().toSec();
-      icp_despos = findCorrespondingPoint(transformed_cloud, disturbed_cloud, mypos_now);
-
-      // double t_ran22 = ros::Time::now().toSec();
-      // ROS_ERROR("time ransac2@@@@@@!!!!!!!!!!!!!!!!!!:::::::::%f", (t_ran22 - t_ran11) * 1000);
+      const auto &point = transformed->points[drone_id_];
+      candidate = Eigen::Vector3d(point.x, point.y, point.z);
     }
-    t_ran2 = ros::Time::now().toSec();
-    return icp_despos;
+    // Apply the configured height AFTER choosing the registration reference.
+    if (!is_opt_formation_z_) candidate.z() = fixed_formation_z_;
+    if (!candidate.allFinite() || (grid_map_ && !grid_map_->isInMap(candidate)))
+    {
+      id_remap_icp = previous_assignment;
+      return false;
+    }
+    reference = candidate; // outputs become usable only on success
+    return true;
   }
 
   double PolyTrajOptimizer::estimateScaleRANSAC(
@@ -3759,90 +3807,57 @@ namespace ego_planner
     return 1.0;
   }
 
-  void PolyTrajOptimizer::ransacRegistrationWithScale(
+  bool PolyTrajOptimizer::ransacRegistrationWithScale(
       const pcl::PointCloud<pcl::PointXYZ>::Ptr &source,
       const pcl::PointCloud<pcl::PointXYZ>::Ptr &target,
-      double scale_est,
-      Eigen::Matrix4f &transformation,
-      int &inliers)
+      double scale_est, Eigen::Matrix4f &transformation, int &inliers)
   {
+    inliers = 0;
+    if (!source || !target || source->size() < 4 || source->size() != target->size() ||
+        !std::isfinite(scale_est) || scale_est <= 0.0)
+      return false;
     try
     {
-      // 添加点云验证
-      if (!source || !target || source->empty() || target->empty())
-      {
-        // ROS_ERROR("noooooooo1111");
-        transformation = Eigen::Matrix4f::Identity();
-        inliers = 0;
-        return;
-      }
-
-      if (source->size() < 4 || target->size() < 4)
-      { // RANSAC至少需要4个点
-        // ROS_ERROR("noooooooo22222: source=%zu, target=%zu", source->size(), target->size());
-        transformation = Eigen::Matrix4f::Identity();
-        inliers = 0;
-        return;
-      }
-
-      // 2. 应用尺度校正
       pcl::PointCloud<pcl::PointXYZ>::Ptr scaled_target(new pcl::PointCloud<pcl::PointXYZ>);
-      scaled_target->resize(target->size());
-
-      for (size_t i = 0; i < target->size(); i++)
+      for (size_t i = 0; i < target->size(); ++i)
       {
-        scaled_target->points[i].x = target->points[i].x / scale_est;
-        scaled_target->points[i].y = target->points[i].y / scale_est;
-        scaled_target->points[i].z = target->points[i].z / scale_est;
+        const auto &src = source->points[i];
+        const auto &dst = target->points[i];
+        pcl::PointXYZ value(dst.x / scale_est, dst.y / scale_est, dst.z / scale_est);
+        if (!std::isfinite(src.x) || !std::isfinite(src.y) || !std::isfinite(src.z) ||
+            !std::isfinite(value.x) || !std::isfinite(value.y) || !std::isfinite(value.z))
+          return false;
+        scaled_target->push_back(value);
       }
-
-      // 3. 下采样点云
-      double voxel_size = 0.1;
-
-      // 4. 创建RANSAC模型
       pcl::SampleConsensusModelRegistration<pcl::PointXYZ>::Ptr model(
           new pcl::SampleConsensusModelRegistration<pcl::PointXYZ>(source));
       model->setInputTarget(scaled_target);
-      // ROS_ERROR("noooooooo35555");
-      // 5. 设置RANSAC参数
       pcl::RandomSampleConsensus<pcl::PointXYZ> ransac(model);
-      ransac.setDistanceThreshold(voxel_size * 1.5);
+      ransac.setDistanceThreshold(0.15);
       ransac.setMaxIterations(1000);
       ransac.setProbability(0.99);
-      // ROS_ERROR("noooooooo66666");
-      // 6. 执行RANSAC
-      if (!ransac.computeModel())
-      {
-        ROS_WARN("RANSAC fail");
-        transformation = Eigen::Matrix4f::Identity();
-        inliers = 0;
-        return;
-      }
-
-      // 7. 获取结果
-      std::vector<int> inlier_indices;
-      ransac.getInliers(inlier_indices);
-      inliers = inlier_indices.size();
-
+      if (!ransac.computeModel()) return false;
+      std::vector<int> indices;
+      ransac.getInliers(indices);
+      if (indices.size() < 4) return false;
       Eigen::VectorXf coeff;
       ransac.getModelCoefficients(coeff);
-
-      // 8. 构建变换矩阵
-      transformation = Eigen::Matrix4f::Identity();
-      for (int i = 0; i < 16 && i < coeff.size(); ++i)
-      {
-        transformation(i / 4, i % 4) = coeff[i];
-      }
-
-      // 9. 补偿尺度
-      transformation.block<3, 3>(0, 0) *= scale_est;
-      transformation.block<3, 1>(0, 3) *= scale_est;
+      if (coeff.size() != 16 || !coeff.allFinite()) return false;
+      Eigen::Matrix4f result;
+      for (int i = 0; i < 16; ++i) result(i / 4, i % 4) = coeff[i];
+      if (std::abs(result.block<3, 3>(0, 0).determinant() - 1.0f) > 1e-2f)
+        return false;
+      result.block<3, 3>(0, 0) *= scale_est;
+      result.block<3, 1>(0, 3) *= scale_est;
+      if (!result.allFinite()) return false;
+      transformation = result;
+      inliers = indices.size();
+      return true;
     }
     catch (const std::exception &e)
     {
-      ROS_ERROR("RANSAC fail2: %s", e.what());
-      transformation = Eigen::Matrix4f::Identity();
-      inliers = 0;
+      ROS_WARN("Registration rejected: %s", e.what());
+      return false;
     }
   }
 
@@ -3948,12 +3963,12 @@ namespace ego_planner
       size = formation_size_all;
     }
     if (size < formation_size_all)
-      return drone_id_;
+      return id_remap_icp >= 0 ? id_remap_icp : drone_id_;
 
     if (drone_id_ == sparse_id.back() && size < drone_id_)
       size++;
     if (size < sparse_id.back() - 1)
-      return drone_id_;
+      return id_remap_icp >= 0 ? id_remap_icp : drone_id_;
     int fake_num = graph_size;
     if (drone_id_ == sparse_id.back())
     {
@@ -3962,14 +3977,14 @@ namespace ego_planner
 
     if (fake_num > swarm_trajs_->size())
     {
-      return drone_id_;
+      return id_remap_icp >= 0 ? id_remap_icp : drone_id_;
     }
     for (int i = 0, fake_id = 0; i < fake_num; i++)
     {
 
       if (i == sparse_id[fake_id] && swarm_trajs_->at(i).drone_id < 0 && sparse_id[fake_id] != drone_id_)
       {
-        return drone_id_;
+        return id_remap_icp >= 0 ? id_remap_icp : drone_id_;
       }
 
       if (i == sparse_id[fake_id])
@@ -4015,7 +4030,13 @@ namespace ego_planner
         }
       }
 
-      Eigen::Vector3d icp_pos_des = pointCloudRegistration(point_des_, point_cur_, true, my_pos);
+      Eigen::Vector3d icp_pos_des;
+      const int previous_assignment = id_remap_icp;
+      if (!pointCloudRegistration(point_des_, point_cur_, true, my_pos, icp_pos_des))
+      {
+        id_remap_icp = previous_assignment;
+        return id_remap_icp >= 0 ? id_remap_icp : drone_id_;
+      }
       icp_pos_des_ = icp_pos_des;
     }
     return id_remap_icp;
@@ -4065,6 +4086,7 @@ namespace ego_planner
 
     nh.param("optimization/enable_fix_step", enable_fix_step_, false);
     nh.param("optimization/sampling_time_step", time_cps_.sampling_time_step, 0.0);
+    nh.param("optimization/max_trajectory_duration", max_trajectory_duration_, 20.0);
     nh.param("optimization/enable_decouple_swarm_graph", time_cps_.enable_decouple_swarm_graph, false);
 
     max_vel_real = max_vel_;

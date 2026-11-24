@@ -86,10 +86,12 @@ namespace ego_planner
       idx_of_sets = 0;
 
       relative_time_ahead.resize(0);
+      relative_time_ahead_for_icp.resize(0);
       swarm_graph_advance_sets.clear();
       swarm_pos_advance_sets.clear();
       swarm_vel_advance_sets.clear();
       local_min_advance_sets.clear();
+      icp_pos.clear();
       return;
     }
 
@@ -98,11 +100,18 @@ namespace ego_planner
 
   class PolyTrajOptimizer
   {
+  public:
+    enum class FailureReason { NONE, INVALID_INPUT, REGISTRATION_FAILED, OUT_OF_MAP, COLLISION };
 
   private:
+    friend class PolyTrajOptimizerTest;
+    FailureReason last_failure_ = FailureReason::NONE;
+    bool registrationReference(double time_offset, Eigen::Vector3d &reference);
     GridMap::Ptr grid_map_;
     bool use_kino_;
     AStar::Ptr a_star_;
+    double astar_resolution_{0.0};
+    double max_trajectory_duration_{20.0};
     // KinodynamicAstar::Ptr kino_a_star_;
     // HybridAstar kino_search_;
     ros::Subscriber formationchange;
@@ -225,7 +234,10 @@ namespace ego_planner
     void generatePoints(int n, int m, 
                                std::vector<Eigen::Vector3d>& point_des_,
                                std::vector<Eigen::Vector3d>& point_cur_);
-    Eigen::Vector3d pointCloudRegistration(std::vector<Eigen::Vector3d> &point_des, std::vector<Eigen::Vector3d> &point_cur, bool for_remap, Eigen::Vector3d mypos_now);
+    bool pointCloudRegistration(const std::vector<Eigen::Vector3d> &point_des,
+                                const std::vector<Eigen::Vector3d> &point_cur,
+                                bool for_remap, const Eigen::Vector3d &mypos_now,
+                                Eigen::Vector3d &reference);
     void generatePointCloudWithDisturbance(
         pcl::PointCloud<pcl::PointXYZ>::Ptr &original_cloud,
         pcl::PointCloud<pcl::PointXYZ>::Ptr &disturbed_cloud,
@@ -242,7 +254,7 @@ namespace ego_planner
         const pcl::PointCloud<pcl::PointXYZ>::Ptr &target,
         int n_samples,
         double threshold);
-    void ransacRegistrationWithScale(
+    bool ransacRegistrationWithScale(
         const pcl::PointCloud<pcl::PointXYZ>::Ptr &source,
         const pcl::PointCloud<pcl::PointXYZ>::Ptr &target,
         double scale_est,
@@ -335,6 +347,9 @@ namespace ego_planner
     void setControlPoints(const Eigen::MatrixXd &points);
     void setSwarmTrajs(SwarmTrajData *swarm_trajs_ptr);
     void setDroneId(const int drone_id);
+    FailureReason getLastFailure() const { return last_failure_; }
+    bool trajectoryWithinMap(const poly_traj::Trajectory &trajectory,
+                             double *violation_time = nullptr) const;
     void FormationChange(const traj_utils::FormationType::ConstPtr &msg);
     /* helper functions */
     inline ConstrainPoints getControlPoints() { return cps_; }
@@ -710,7 +725,7 @@ namespace ego_planner
     poly_traj_leader::Trajectory<3> posTraj_sub;
     poly_traj_leader::Trajectory<1> radiusTraj_sub;
     poly_traj_leader::Trajectory<1> lllTraj_sub;
-    int id_remap_icp;
+    int id_remap_icp = -1;
   };
 
 } // namespace ego_planner

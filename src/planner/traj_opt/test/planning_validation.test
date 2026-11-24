@@ -1,0 +1,4 @@
+<launch>
+  <test test-name="planning_validation" pkg="traj_opt"
+        type="test_planning_validation" time-limit="60"/>
+</launch>

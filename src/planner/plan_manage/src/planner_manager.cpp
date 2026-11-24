@@ -653,6 +653,19 @@ namespace ego_planner
                                                             innerPts, initTraj.getDurations(),
                                                             cstr_pts, use_formation);
 
+    bool used_formation = use_formation;
+    if (!flag_success && use_formation &&
+        ploy_traj_opt_->getLastFailure() == PolyTrajOptimizer::FailureReason::REGISTRATION_FAILED)
+    {
+      // Reuse this attempt's A* initialization and global local-goal. Do not
+      // advance global progress twice or carry failed registration buffers on.
+      ROS_WARN_THROTTLE(1.0, "[drone %d] Registration unavailable; retrying with global-goal guidance and local avoidance",
+                        pp_.drone_id);
+      used_formation = false;
+      flag_success = ploy_traj_opt_->optimizeTrajectory_lbfgs(headState, tailState,
+          innerPts, initTraj.getDurations(), cstr_pts, false);
+    }
+
     t_opt = ros::Time::now() - t_start;
     ros::Time t_end_replan = ros::Time::now();
     
@@ -683,7 +696,7 @@ namespace ego_planner
     // set the right start time of local traj
     double local_traj_time;
     // if (have_local_traj && use_formation)
-    if (have_local_traj && use_formation)
+    if (have_local_traj && used_formation)
     {
       double delta_replan_time = trajectory_start_time - ros::Time::now().toSec();
       if (delta_replan_time > 0)

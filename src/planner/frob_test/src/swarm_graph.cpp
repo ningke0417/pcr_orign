@@ -29,6 +29,7 @@ bool SwarmGraph::updateGraph( const std::vector<Eigen::Vector3d> &swarm )
     }else{
         ROS_WARN( "Please enter the desired formation!!" );
     }
+    return have_desired_;
 }
 
 bool SwarmGraph::updatePartGraphAndGetGrad( const int idx, const std::vector<Eigen::Vector3d> &swarm, 
@@ -52,6 +53,7 @@ bool SwarmGraph::updatePartGraphAndGetGrad( const int idx, const std::vector<Eig
     }else{
         ROS_WARN( "Please enter the desired formation!!" );
     }
+    return have_desired_;
 }
 
 bool SwarmGraph::setDesiredForm( const std::vector<Eigen::Vector3d> &swarm_des,
@@ -171,6 +173,7 @@ bool SwarmGraph::calcFGrad( Eigen::Vector3d &gradp, Eigen::Vector3d &gradp_org, 
         ROS_WARN( "Invalid desired formation." );
         return false;
     }
+    return true;
 }
 
 

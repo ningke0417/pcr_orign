@@ -55,3 +55,13 @@ target_link_libraries( traj_opt
     ${catkin_LIBRARIES} 
     ) 
 
+if(CATKIN_ENABLE_TESTING)
+  find_package(rostest REQUIRED)
+  add_rostest_gtest(test_planning_validation
+    test/planning_validation.test test/test_planning_validation.cpp)
+  if(TARGET test_planning_validation)
+    target_link_libraries(test_planning_validation traj_opt ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+    add_dependencies(test_planning_validation ${catkin_EXPORTED_TARGETS})
+  endif()
+endif()
+
