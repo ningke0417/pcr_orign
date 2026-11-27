@@ -1,5 +1,8 @@
 # PCR 八机固定墙对比实验
 
+六、八、十二、十六机的通用入口及三类场景命令见
+[多机编队说明](multi_uav_formation.md)。本文保留原八机入口及历史验证记录。
+
 本工作区以 `ecdfbcce61e71a4c4c45385a4c3401c12d7d4e57`
 （初始版本：老师提供完整多机仿真源码6-30）为基线，增加八机场景入口。
 参考仓库是 `~/Codes/EGO-Planner-criterion-validation` 的 `distributed` 分支，

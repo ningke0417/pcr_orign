@@ -3160,7 +3160,9 @@ namespace ego_planner
     else
     {
       a_star_.reset(new AStar);
-      a_star_->initGridMap(grid_map_, Eigen::Vector3i(100, 100, 60));
+      double astar_time_limit;
+      nh.param("search/astar_time_limit", astar_time_limit, 0.2);
+      a_star_->initGridMap(grid_map_, Eigen::Vector3i(100, 100, 60), astar_time_limit);
     }
 
     ztr_log3.open("/home/ztr/Pipline-Swarm-Formation/log/drone_" + to_string(id) + ".txt");

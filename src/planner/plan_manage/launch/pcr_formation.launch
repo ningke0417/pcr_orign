@@ -1,0 +1,92 @@
+<?xml version="1.0" ?>
+<launch>
+  <!-- Empty overrides inherit config/pcr_formation_scenes.yaml; one entry for every scene and fleet size. -->
+  <arg name="scene" default="fixed_wall"/>
+  <arg name="formation_rows" default=""/>
+  <arg name="formation_columns" default=""/>
+  <arg name="row_spacing" default=""/>
+  <arg name="column_spacing" default=""/>
+  <arg name="auto_start" default=""/>
+  <arg name="rviz" default=""/>
+  <arg name="max_vel" default=""/>
+  <arg name="max_acc" default=""/>
+  <arg name="astar_time_limit" default=""/>
+  <arg name="map_size_y" default=""/>
+  <arg name="map_size_z" default=""/>
+  <arg name="altitude" default=""/>
+  <arg name="odom_topic" default=""/>
+  <arg name="safety_distance" default=""/>
+  <arg name="wall_x" default=""/>
+  <arg name="wall_y" default=""/>
+  <arg name="wall_size_x" default=""/>
+  <arg name="wall_size_y" default=""/>
+  <arg name="second_wall_x" default=""/>
+  <arg name="second_wall_size_x" default=""/>
+  <arg name="second_wall_total_size_y" default=""/>
+  <arg name="second_wall_gap_size_y" default=""/>
+  <arg name="random_seed" default=""/>
+  <arg name="small_position_seed" default=""/>
+  <arg name="large_obstacle_count" default=""/>
+  <arg name="small_obstacle_count" default=""/>
+  <arg name="endpoint_clearance" default=""/>
+  <arg name="boundary_clearance" default=""/>
+  <arg name="obstacle_separation" default=""/>
+  <arg name="goal_side_obstacle_size_y" default=""/>
+  <arg name="goal_side_obstacle_center_y" default=""/>
+  <arg name="large_longitudinal_separation" default=""/>
+  <arg name="small_center_y_limit" default=""/>
+  <arg name="small_size_min" default=""/>
+  <arg name="small_size_max" default=""/>
+  <arg name="structured_challenge_enabled" default=""/>
+  <arg name="stacked_cluster_x" default=""/>
+  <arg name="narrow_gap_x" default=""/>
+  <arg name="narrow_gap_size_y" default=""/>
+  <arg name="map_size_x" default=""/>
+  <arg name="start_x" default=""/>
+  <arg name="goal_x" default=""/>
+  <node pkg="ego_planner" type="launch_pcr_formation.py" name="pcr_formation_launcher" output="screen" required="true" clear_params="true">
+    <param name="scene" value="$(arg scene)" type="str"/>
+    <param name="formation_rows" value="$(arg formation_rows)" type="str"/>
+    <param name="formation_columns" value="$(arg formation_columns)" type="str"/>
+    <param name="row_spacing" value="$(arg row_spacing)" type="str"/>
+    <param name="column_spacing" value="$(arg column_spacing)" type="str"/>
+    <param name="auto_start" value="$(arg auto_start)" type="str"/>
+    <param name="rviz" value="$(arg rviz)" type="str"/>
+    <param name="max_vel" value="$(arg max_vel)" type="str"/>
+    <param name="max_acc" value="$(arg max_acc)" type="str"/>
+    <param name="astar_time_limit" value="$(arg astar_time_limit)" type="str"/>
+    <param name="map_size_y" value="$(arg map_size_y)" type="str"/>
+    <param name="map_size_z" value="$(arg map_size_z)" type="str"/>
+    <param name="altitude" value="$(arg altitude)" type="str"/>
+    <param name="odom_topic" value="$(arg odom_topic)" type="str"/>
+    <param name="safety_distance" value="$(arg safety_distance)" type="str"/>
+    <param name="wall_x" value="$(arg wall_x)" type="str"/>
+    <param name="wall_y" value="$(arg wall_y)" type="str"/>
+    <param name="wall_size_x" value="$(arg wall_size_x)" type="str"/>
+    <param name="wall_size_y" value="$(arg wall_size_y)" type="str"/>
+    <param name="second_wall_x" value="$(arg second_wall_x)" type="str"/>
+    <param name="second_wall_size_x" value="$(arg second_wall_size_x)" type="str"/>
+    <param name="second_wall_total_size_y" value="$(arg second_wall_total_size_y)" type="str"/>
+    <param name="second_wall_gap_size_y" value="$(arg second_wall_gap_size_y)" type="str"/>
+    <param name="random_seed" value="$(arg random_seed)" type="str"/>
+    <param name="small_position_seed" value="$(arg small_position_seed)" type="str"/>
+    <param name="large_obstacle_count" value="$(arg large_obstacle_count)" type="str"/>
+    <param name="small_obstacle_count" value="$(arg small_obstacle_count)" type="str"/>
+    <param name="endpoint_clearance" value="$(arg endpoint_clearance)" type="str"/>
+    <param name="boundary_clearance" value="$(arg boundary_clearance)" type="str"/>
+    <param name="obstacle_separation" value="$(arg obstacle_separation)" type="str"/>
+    <param name="goal_side_obstacle_size_y" value="$(arg goal_side_obstacle_size_y)" type="str"/>
+    <param name="goal_side_obstacle_center_y" value="$(arg goal_side_obstacle_center_y)" type="str"/>
+    <param name="large_longitudinal_separation" value="$(arg large_longitudinal_separation)" type="str"/>
+    <param name="small_center_y_limit" value="$(arg small_center_y_limit)" type="str"/>
+    <param name="small_size_min" value="$(arg small_size_min)" type="str"/>
+    <param name="small_size_max" value="$(arg small_size_max)" type="str"/>
+    <param name="structured_challenge_enabled" value="$(arg structured_challenge_enabled)" type="str"/>
+    <param name="stacked_cluster_x" value="$(arg stacked_cluster_x)" type="str"/>
+    <param name="narrow_gap_x" value="$(arg narrow_gap_x)" type="str"/>
+    <param name="narrow_gap_size_y" value="$(arg narrow_gap_size_y)" type="str"/>
+    <param name="map_size_x" value="$(arg map_size_x)" type="str"/>
+    <param name="start_x" value="$(arg start_x)" type="str"/>
+    <param name="goal_x" value="$(arg goal_x)" type="str"/>
+  </node>
+</launch>

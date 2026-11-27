@@ -7,6 +7,7 @@
  * @FilePath: /Pipline-Swarm-Formation/src/planner/path_searching/src/dyn_a_star.cpp
  */
 #include "path_searching/dyn_a_star.h"
+#include <cmath>
 
 using namespace std;
 using namespace Eigen;
@@ -19,8 +20,13 @@ AStar::~AStar()
                 delete GridNodeMap_[i][j][k];
 }
 
-void AStar::initGridMap(GridMap::Ptr occ_map, const Eigen::Vector3i pool_size)
+void AStar::initGridMap(GridMap::Ptr occ_map, const Eigen::Vector3i pool_size,
+                       double search_time_limit)
 {
+    if (std::isfinite(search_time_limit) && search_time_limit > 0.0)
+        search_time_limit_ = search_time_limit;
+    else
+        ROS_WARN("Invalid A* search time limit; using %.3f seconds", search_time_limit_);
     POOL_SIZE_ = pool_size;
     CENTER_IDX_ = pool_size / 2;
 
@@ -273,9 +279,10 @@ bool AStar::AstarSearch(const double step_size, Vector3d start_pt, Vector3d end_
                     }
                 }
         ros::Time time_2 = ros::Time::now();
-        if ((time_2 - time_1).toSec() > 0.2)
+        if ((time_2 - time_1).toSec() > search_time_limit_)
         {
-            ROS_WARN("Failed in A star path searching !!! 0.2 seconds time limit exceeded.");
+            ROS_WARN("Failed in A star path searching !!! %.3f seconds time limit exceeded.",
+                     search_time_limit_);
             return false;
         }
     }

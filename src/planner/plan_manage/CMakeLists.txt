@@ -51,3 +51,7 @@ target_link_libraries(ego_planner_node
 
 add_executable(traj_server src/traj_server.cpp)
 target_link_libraries(traj_server ${catkin_LIBRARIES})
+
+catkin_install_python(PROGRAMS scripts/launch_pcr_formation.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+install(DIRECTORY launch config DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})

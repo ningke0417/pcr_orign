@@ -1,0 +1,64 @@
+# Shared launch defaults. Rows follow x, columns follow y; slot IDs are row-major.
+# Map defaults match the reference's distributed_* launchers (2026-11-24).
+common:
+  formation_rows: 2
+  formation_columns: 4
+  row_spacing: 1.0
+  column_spacing: 1.0
+  auto_start: true
+  rviz: true
+  max_vel: 0.5
+  max_acc: 6.0
+  # Sixteen concurrent searches can exceed the legacy 0.2 s wall-clock budget.
+  astar_time_limit: 1.0
+  map_size_y: 14.0
+  map_size_z: 3.0
+  altitude: 1.5
+  odom_topic: visual_slam/odom
+  safety_distance: 0.2
+  wall_x: -2.0
+  wall_y: 0.0
+  wall_size_x: 0.5
+  wall_size_y: 6.0
+  second_wall_x: 6.5
+  second_wall_size_x: 0.5
+  second_wall_total_size_y: 10.0
+  second_wall_gap_size_y: 1.8
+  random_seed: 17
+  small_position_seed: -1
+  large_obstacle_count: 4
+  small_obstacle_count: 6
+  endpoint_clearance: 3.0
+  boundary_clearance: 0.8
+  obstacle_separation: 0.7
+  goal_side_obstacle_size_y: 4.0
+  goal_side_obstacle_center_y: 0.0
+  large_longitudinal_separation: 3.5
+  small_center_y_limit: 2.0
+  small_size_min: 0.45
+  small_size_max: 0.9
+  structured_challenge_enabled: true
+  stacked_cluster_x: -2.0
+  narrow_gap_x: 4.8
+  narrow_gap_size_y: 1.6
+scenes:
+  fixed_wall:
+    map_size_x: 24.0
+    start_x: -6.0
+    goal_x: 10.0
+  sparse_random:
+    map_size_x: 32.0
+    start_x: -14.0
+    goal_x: 14.0
+  cluttered_random:
+    map_size_x: 40.0
+    map_size_y: 18.0
+    start_x: -17.0
+    goal_x: 17.0
+    large_obstacle_count: 0
+    small_obstacle_count: 60
+    small_size_max: 1.1
+    small_center_y_limit: 8.0
+    endpoint_clearance: 5.0
+    obstacle_separation: 0.6
+    structured_challenge_enabled: false

@@ -8,6 +8,8 @@
   <arg name="map_size_y" default="14.0"/>
   <arg name="map_size_z" default="3.0"/>
   <arg name="max_vel" default="0.5"/>
+  <arg name="max_acc" default="6.0"/>
+  <arg name="swarm_formation_yaml" default="rectangle_8uav_pcr"/>
   <arg name="auto_start" default="true"/>
   <arg name="safety_distance" default="0.2"/>
   <arg name="odom_topic" default="visual_slam/odom"/>
@@ -26,10 +28,10 @@
       <arg name="map_size_y" value="$(arg map_size_y)"/>
       <arg name="map_size_z" value="$(arg map_size_z)"/>
       <arg name="odom_topic" value="$(arg odom_topic)"/>
-      <arg name="swarm_formation_yaml" value="rectangle_8uav_pcr"/>
+      <arg name="swarm_formation_yaml" value="$(arg swarm_formation_yaml)"/>
       <arg name="flight_type" value="4"/>
       <arg name="max_vel" value="$(arg max_vel)"/>
-      <arg name="max_acc" value="6.0"/>
+      <arg name="max_acc" value="$(arg max_acc)"/>
       <arg name="direct_swarm_topics" value="true"/>
       <arg name="mesh_resource" value="package://odom_visualization/meshes/fake_drone.dae"/>
       <arg name="robot_scale" value="0.35"/>
